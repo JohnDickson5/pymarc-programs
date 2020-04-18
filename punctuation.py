@@ -11,39 +11,75 @@ linking_entry_fields = ['760', '762', '765', '767', '770', '772', '773',
                         '787']
 
 
-def add_end_punct(field, target_sub, end_punct, exempt=''):
+def append_punct(field, sub_pos, end_str, exempt=[], abbrev_exempt=False):
+    """Add a string to the end of a subfield if it does not already
+    end in that string or an exemption. For the 'exempt' list, include
+    only strings that are always exempt for receiving the ending (that
+    is, do not include a period if only periods after abbreviations
+    are exempt). By default, fields ending in abbreviations will
+    receive the ending, but this can be disabled by changing
+    abbreviations_exempt to 'True'.
+    """
+    # Get the subfield data
+    sub = field.subfields[sub_pos]
+    # Check that the subfield does not already end in the string
+    if not sub.endswith(end_str):
+        # Check that the subfield does not end in an exemption
+        exempt_ending = False
+        for exemption in exempt:
+            if sub.endswith(exemption):
+                exempt_ending = True
+        if not exempt_ending:
+            # Warn if the field ends in a period; as periods ending
+            # abbreviations are sometimes treated differently from
+            # other periods, it is not safe to take action based on an
+            # ending period.
+            if sub.endswith('.') and abbrev_exempt:
+                # TODO: get user input
+                print(f"Possible ending abbreviation: {sub}")
+            else:
+                # Remove partial punctuation or spaces from the end of
+                # the subfield
+                while sub != '':
+                    if sub[-1] in end_str or sub[-1] in ' ':
+                        sub = sub[:-1]
+                    else:
+                        break
+                # Edit the subfield
+                field.subfields[sub_pos] = ''.join(sub, end_str)
+
+
+def append_to_each_sub(
+        field, sub_code, end_str, exempt=[], abbrev_exempt=False):
     """Add ending punctuation to every instance of a target subfield"""
-    # Iterate through all the subfields in each field
-    for n, sub in enumerate(field.subfields):
-        if sub == target_sub:
-            # Check if the subfied data ends with the desired
-            # punctuation
-            data = field.subfields[n+1]
-            # Check the length of the data, to avoid a string indexing
-            # error
-            if len(data) < len(end_punct):
-                if data not in end_punct:
-                    field.subfields[n+1] = data + end_punct
-            # If the data is longer than the punctuation, check if it
-            # ends with the punctuation
-            elif not data.endswith(end_punct):
-                # If not, check if the data ends in one of the exempt
-                ellipsis = False
-                if '...' in exempt:
-                    exempt.replace('...', '')
-                    if data.endswith('...'):
-                        ellipsis = True
-                # If the data does not end in an exemption, add the
-                # prescribed punctuation
-                if data[-1] not in exempt and not ellipsis:
-                    # If the data ends in part of the required
-                    # punctuation, remove that part
-                    while True:
-                        if data[-1] in end_punct:
-                            data = data[:-1]
-                        else:
-                            break
-                    field.subfields[n+1] = data + end_punct
+    # Iterate through all the subfields in the field. Note that
+    # field.subfields is a list of subfield codes and subfield data in
+    # order, with no discrimination between which list items are codes and
+    # which are data, but codes should be at even-numbered positions
+    # in the list and the corresponding data in the next, odd-numbered
+    # position.
+    for n, item in enumerate(field.subfields):
+        if item == sub_code and n % 2 == 0:
+            append_punct(field, n+1, end_str, exempt, abbrev_exempt)
+
+
+def precede_sub(field, sub_code, end_str, exempt=[], abbrev_exempt=False):
+    """Add punctuation to the end of the preceding subfield"""
+    # Iterate through all the subfields in the field. See the note
+    # on the .subfields method under the append_to_each_sub function
+    for n, item in enumerate(field.subfields):
+        if item == sub_code and n % 2 == 0:
+            append_punct(field, n-1, end_str, exempt, abbrev_exempt)
+            # If the punctuation was entered at the beginning of the
+            # subfield instead of the end of the previous subfield,
+            # remove that punctuation
+            subfield_data = field.subfields[n+1]
+            while subfield_data[0] in end_str or subfield[0] in ' ':
+                # Remove first character
+                subfield_data = subfield_data[1:]
+            # If the data has changed, update the field
+            if field.subfields[n+1] != subfield_data:
+                field.subfields[n+1] = subfield_data
 
 
 def add_pre_punct(field, target_sub, pre_punct, exempt=''):
@@ -51,7 +87,7 @@ def add_pre_punct(field, target_sub, pre_punct, exempt=''):
     # Iterate through all the subfields in each field
     for n, sub in enumerate(field.subfields):
         if sub == target_sub:
-            # Check if the subfied before the target sub ends with the
+            # Check if the subfield before the target sub ends with the
             # desired punctuation
             prev = field.subfields[n-1]
             # To avoid a string indexing error, make sure the subfield
@@ -62,20 +98,20 @@ def add_pre_punct(field, target_sub, pre_punct, exempt=''):
             # If so, check if it ends in the punctuation or an
             # exemption
         elif not prev.endswith(pre_punct):
-                ellipsis = False
-                if '...' in exempt:
-                    exempt = exempt.replace('...', '')
-                    if prev.endswith('...'):
-                        ellipsis = True
-                if prev[-1] not in exempt and not ellipsis:
-                    # If the data ends in part of the required
-                    # punctuation, remove that part
-                    while prev != '':
-                        if prev[-1] in pre_punct + ' ':
-                            prev = prev[:-1]
-                        else:
-                            break
-                    field.subfields[n-1] = prev + pre_punct
+            ellipsis = False
+            if '...' in exempt:
+                exempt = exempt.replace('...', '')
+                if prev.endswith('...'):
+                    ellipsis = True
+            if prev[-1] not in exempt and not ellipsis:
+                # If the data ends in part of the required
+                # punctuation, remove that part
+                while prev != '':
+                    if prev[-1] in pre_punct + ' ':
+                        prev = prev[:-1]
+                    else:
+                        break
+                field.subfields[n-1] = prev + pre_punct
 
 
 def add_terminal_period(field, exempt=''):
@@ -299,7 +335,7 @@ def remove_all_punct(field, subfield):
 #     # Iterate through all the subfields in each field
 #     for n, subfield in enumerate(field.subfields):
 #         if subfield == target_sub:
-#             # Check if the subfied data ends with the desired punctuation
+#             # Check if the subfield data ends with the desired punctuation
 #             data = field.subfields[n + 1]
 #             i = len(punctuation) * -1
 #             # Check the length of the data, to avoid a string indexing error
