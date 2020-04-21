@@ -49,7 +49,7 @@ def append_punct(field, sub_pos, end_str, exempt=[], abbrev_exempt=False):
                     else:
                         break
                 # Edit the subfield
-                field.subfields[sub_pos] = ''.join(sub, end_str)
+                field.subfields[sub_pos] = ''.join([sub, end_str])
 
 
 def append_to_each_sub(
@@ -113,6 +113,7 @@ def enclose_subs(field, subcodes, start_punct, separate_punct, end_punct):
     """Add punctuation enclosing the data in a subfield, and
     punctuation separating multiple instances of the same subfield
     """
+    o = field.__str__()
     sub_count = 0
     # Count the number of target subfields
     for code in subcodes:
@@ -132,17 +133,32 @@ def enclose_subs(field, subcodes, start_punct, separate_punct, end_punct):
                 # Remove any leading partial punctuation or spaces
                 while data[0] in start_punct + ' ':
                     data = data[1:]
-                data = start_punct + data
+                field.subfields[n+1] = ''.join((start_punct, data))
             # Put the separating punctuation the end of each subfield
             # except the last
             if tally < sub_count:
                 append_punct(field, n+1, separate_punct)
             # Put the ending punctuation at the end of the last
             # subfield
+            # TODO: add possibility of placing ending punctuation
+            # before preceding punctuation of next subfield (big
+            # problem with 020$q followed by 020$c)
             if tally == sub_count:
                 append_punct(field, n+1, end_punct)
             # Increase the tally
             tally += tally
+    if field.__str__() == o:
+        with open('output_mrc/unchanged_enclose.txt', 'a') as out:
+            try:
+                out.write(''.join([o, '\n']))
+            except UnicodeEncodeError as e:
+                pass
+    else:
+        with open('output_mrc/changed_enclose.txt', 'a') as out:
+            try:
+                out.write(''.join([o, '\n',field.__str__(), '\n']))
+            except UnicodeEncodeError as e:
+                pass
 
 
 def remove_all_punct(field, subfield):
@@ -163,51 +179,66 @@ def del_from_end(
     sub = field.subfields[sub_pos]
     # Append a single space to the deleted list so that any trailing
     # spaces caused by deletions
-    del_list.append(' ')
+    if field.tag != '010':
+        del_list.append(' ')
     # Remove the ending until it is not in the list of ends to be
     # deleted or it is in the list of exemptions
+    count = 0
     while (sub.endswith(tuple(del_list))
-            and not sub.endswith(tuple(exempt)):
+            and not sub.endswith(tuple(exempt))):
+        print(count, end='')
+        if count == 100:
+            print("Loop trouble")
+            break
         for i in del_list:
             if sub.endswith(i):
+                count += 1
                 # Warn if the field ends in a period; as periods
                 # ending abbreviations are sometimes treated
                 # differently from other periods, it is not safe to
                 # take action based on an ending period.
-                if i = '.' and abbrev_exempt:
+                if i == '.' and abbrev_exempt:
                     print(f"Possible ending abbreviation: {sub}")
+                    del_list.remove('.')
                     break
                 else:
+                    print(sub)
                     sub = sub[:-len(i)]
+                    print(sub)
                 continue
     # Save any changes made
     if field.subfields[sub_pos] != sub:
+        with open('output_mrc/unchanged_deltermpunct.txt', 'a') as out:
+            try:
+                out.write('\t'.join([field.__str__(), str(sub_pos),
+                                     str(del_list), str(exempt),
+                                     str(abbrev_exempt), sub]))
+            except UnicodeEncodeError as e:
+                pass
         field.subfields[sub_pos] = sub
+    else:
+        with open('output_mrc/1.txt', 'a') as out:
+            try:
+                out.write('1')
+            except UnicodeEncodeError as e:
+                pass
 
 
 def del_pre_punct(
         field, del_list=any_punct, exempt=[], abbrev_exempt=False):
     """Omit punctuation preceding each subfield in a field"""
-    for n, sub in enumerate(field.subfields)
+    for n, sub in enumerate(field.subfields):
         # Compensate for the separate storage of codes and data in the
         # subfields method, and the start of indexing with 0
         if n % 2 != 0 and n < len(field.subfields) - 1:
             del_from_end(field, n, del_list, exempt, abbrev_exempt)
 
 
-# Use del_terminal_punct for this instead
-# def del_terminal_period(field, exempt=['...'], abbrev_exempt=True):
-#     """Remove the terminal period at the end of a field"""
-#     # Compensate for indexing beginning with 0
-#     last_subdata = len(field.subfields) - 1
-#     del_from_end(field, last_subdata, ['.'], exempt, abbrev_exempt)
-
-
 def del_terminal_punct(field, punct=any_punct, exempt=[], abbrev_exempt=True):
     """Remove target punctuation from the end of a field"""
     # Compensate for indexing beginning with 0
     last_subdata_pos = len(field.subfields) - 1
-    del_from_end(field, last_subcode_pos, punct, exempt, abbrev_exempt)
+    del_from_end(field, last_subdata_pos, punct, exempt, abbrev_exempt)
 
 
 # def edit_242(record, index, pre_punct):
@@ -381,27 +412,29 @@ def del_terminal_punct(field, punct=any_punct, exempt=[], abbrev_exempt=True):
 
 
 def main():
-    with open('input_mrc/242.mrc', 'rb') as fh:
+    with open('output_mrc/010.mrc', 'rb') as fh:
         # Open the record and encode as unicode, to prevent errors
         reader = MARCReader(fh, to_unicode=True, force_utf8=True)
         for record in reader:
             for f_index, field in enumerate(record.fields):
-                if field.tag in ['015', '020', '024', '027', '028']:
-                    enclose_subs(field, 'q', '(', ';', ')')
-                # if field.tag in list1 or field.tag in linking_entry_fields:
-                #     remove_terminal_punct(field, "-)!?")
-                if field.tag == '210' or field.tag == '222':
-                    enclose_subs(field, 'b', '(', '', ')')
-                # list2 = ['100', '600', '700', '800']
-                # if field.tag in list2:
+                if field.tag in ['010']:
+                    del_terminal_punct(field, abbrev_exempt=False)
+                # if field.tag in ['015', '024', '027', '028']:
+                #     enclose_subs(field, 'q', '(', ';', ')')
+                # if (field.tag in ['015', '020', '024', '027', '028']
+                #         or field.tag in linking_entry_fields):
+                #     del_terminal_punct(field, exempt=['...', ')', '!', '?'],
+                #                        abbrev_exempt=True)
+                # if field.tag in ['210', '222']:
+                #     enclose_subs(field, 'b', '(', '', ')')
+                # if field.tag in ['100', '600', '700', '800']:
                 #     add_terminal_period(field)
-                # list3 = ['210', '222', '251', '270', '340', '341', '342',
-                #          '355', '357', '363', '365', '366', '377', '380',
-                #          '381', '382', '384', '385', '386', '388', '938',
-                #          '956', '987']
-                # if field.tag in list3:
-                #     remove_pre_punct(field, "!-?]}>)")
-                #     remove_terminal_period(field)
+                # if field.tag in ['210', '222', '251', '270', '340', '341',
+                #                  '342', '355', '357', '363', '365', '366',
+                #                  '377', '380', '381', '382', '384', '385',
+                #                  '386', '388', '938', '956', '987']:
+                #     # remove_pre_punct(field, "!-?]}>)")
+                #     del_terminal_punct(field, del_list=['.'])
                 # if field.tag == '242':
                 #     remove_all_punct(field, 'y')
                 #     control_subs.append('y')
@@ -432,9 +465,9 @@ def main():
                 #             # Update the subfield if it has been changed
                 #             if field.subfields[n-1] != prev:
                 #                 field.subfields[n-1] = prev
-                if field.tag == '245':
-                    # add_pre_punct(field, 'f', ',')
-                    enclose_subs(field, 'g', '(', '', ')')
+                # if field.tag == '245':
+                #     # add_pre_punct(field, 'f', ',')
+                #     enclose_subs(field, 'g', '(', '', ')')
                 #     if field['a']:
                 #         add_pre_punct(field, 'k', ' :')
                 #     # subfield p following a subfield n vs. not
@@ -448,11 +481,9 @@ def main():
                 #     remove_terminal_punct(field)
                 # if field.tag == '300':
                 #     add_pre_punct(field, 'b', ' :')
-                # if field.tag in linking_entry_fields:
-                #     remove_terminal_punct(field, "-)!?")
-            # Write the edited record to a new file
-            with open('output_mrc/242.mrc', 'ab') as out:
-                out.write(record.as_marc())
+            # # Write the edited record to a new file
+            # with open('output_mrc/242.mrc', 'ab') as out:
+            #     out.write(record.as_marc())
 
 if __name__ == '__main__':
     main()
