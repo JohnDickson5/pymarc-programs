@@ -184,9 +184,10 @@ def del_from_end(
     # Remove the ending until it is not in the list of ends to be
     # deleted or it is in the list of exemptions
     count = 0
+    abbrev = False
     while (sub.endswith(tuple(del_list))
-            and not sub.endswith(tuple(exempt))):
-        print(count, end='')
+            and not sub.endswith(tuple(exempt))
+            and not abbrev):
         if count == 100:
             print("Loop trouble")
             break
@@ -198,30 +199,35 @@ def del_from_end(
                 # differently from other periods, it is not safe to
                 # take action based on an ending period.
                 if i == '.' and abbrev_exempt:
-                    print(f"Possible ending abbreviation: {sub}")
-                    del_list.remove('.')
-                    break
+                    ans = ''
+                    while ans != 'y' and ans != 'n':
+                        print(sub)
+                        ans = input("Does this subfield end in an abbreviation (y/n): ")
+                        ans = ans.strip().lower()
+                    if ans == 'y':
+                        abbrev = True
+                        break
+                    else:
+                        sub = sub[:-len(i)]
                 else:
-                    print(sub)
                     sub = sub[:-len(i)]
-                    print(sub)
-                continue
     # Save any changes made
     if field.subfields[sub_pos] != sub:
-        with open('output_mrc/unchanged_deltermpunct.txt', 'a') as out:
-            try:
-                out.write('\t'.join([field.__str__(), str(sub_pos),
-                                     str(del_list), str(exempt),
-                                     str(abbrev_exempt), sub]))
-            except UnicodeEncodeError as e:
-                pass
+        if field.tag in ['017', '018']:
+            with open('output_mrc/017_8c.txt', 'a') as out:
+                try:
+                    out.write('\n'.join([field.__str__(), sub]))
+                except UnicodeEncodeError as e:
+                    pass
         field.subfields[sub_pos] = sub
     else:
-        with open('output_mrc/1.txt', 'a') as out:
-            try:
-                out.write('1')
-            except UnicodeEncodeError as e:
-                pass
+        if field.tag  in ['017', '018']:
+            with open('output_mrc/017_8u.txt', 'a') as out:
+                try:
+                    out.write(sub)
+                    out.write('\n')
+                except UnicodeEncodeError as e:
+                    pass
 
 
 def del_pre_punct(
@@ -416,9 +422,15 @@ def main():
         # Open the record and encode as unicode, to prevent errors
         reader = MARCReader(fh, to_unicode=True, force_utf8=True)
         for record in reader:
-            for f_index, field in enumerate(record.fields):
+            for num, field in enumerate(record.fields):
                 if field.tag in ['010']:
                     del_terminal_punct(field, abbrev_exempt=False)
+                if field.tag in ['015', '020']:
+                    del_terminal_punct(field,
+                                       exempt=['...', '-', ')', '!', '?'])
+                if field.tag in ['017', '018']:
+                    del_terminal_punct(field,
+                                       exempt=['.',	'?', '!', '-'])
                 # if field.tag in ['015', '024', '027', '028']:
                 #     enclose_subs(field, 'q', '(', ';', ')')
                 # if (field.tag in ['015', '020', '024', '027', '028']
