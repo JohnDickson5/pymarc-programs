@@ -13,6 +13,9 @@ linking_entry_fields = ['760', '762', '765', '767', '770', '772', '773',
                         '774', '775', '776', '777', '780', '785', '786',
                         '787']
 
+abbrev_list = []
+not_abbrev_list = []
+
 
 def append_punct(field, sub_pos, end_str, exempt=[], abbrev_exempt=False):
     """Add a string to the end of a subfield if it does not already
@@ -181,53 +184,72 @@ def del_from_end(
     # spaces caused by deletions
     if field.tag != '010':
         del_list.append(' ')
+    # Initiate a count as a failsafe for infinite looping
+    count = 0
+    if abbrev_exempt == True:
+        # Add abbreviations list to exemptions list
+        exempt.extend(abbrev_list)
+    # If the user has already indicated that an ending is not an
+    # abbreviation, do not ask again
+    if sub.endswith(tuple(not_abbrev_list)):
+        sub = sub[:-1]
     # Remove the ending until it is not in the list of ends to be
     # deleted or it is in the list of exemptions
-    count = 0
-    abbrev = False
     while (sub.endswith(tuple(del_list))
-            and not sub.endswith(tuple(exempt))
-            and not abbrev):
+            and not sub.endswith(tuple(exempt))):
         if count == 100:
             print("Loop trouble")
             break
         for i in del_list:
             if sub.endswith(i):
+                end = ''
+                for index, char in enumerate(reversed(sub)):
+                    if index > 0:
+                        if char == ' ' or char in any_punct:
+                            end = sub[-index-1:]
+                            break
+                if end == '':
+                    end = sub
                 count += 1
                 # Warn if the field ends in a period; as periods
                 # ending abbreviations are sometimes treated
                 # differently from other periods, it is not safe to
                 # take action based on an ending period.
-                if i == '.' and abbrev_exempt:
-                    ans = ''
-                    while ans != 'y' and ans != 'n':
-                        print(sub)
-                        ans = input("Does this subfield end in an abbreviation (y/n): ")
-                        ans = ans.strip().lower()
-                    if ans == 'y':
-                        abbrev = True
-                        break
+                if i == '.' and abbrev_exempt and end not in abbrev_list:
+                    if end not in abbrev_list:
+                        ans = ''
+                        while ans != 'y' and ans != 'n':
+                            print(sub)
+                            ans = input("""Does this subfield end in an"""
+                                         + """ abbreviation (y/n): """)
+                            ans = ans.strip().lower()
+                        if ans == 'y':
+                            abbrev_list.append(end)
+                            break
+                        else:
+                            not_abbrev_list.append(end)
+                            sub = sub[:-len(i)]
                     else:
-                        sub = sub[:-len(i)]
+                        break
                 else:
                     sub = sub[:-len(i)]
     # Save any changes made
     if field.subfields[sub_pos] != sub:
-        if field.tag in ['017', '018']:
-            with open('output_mrc/017_8c.txt', 'a') as out:
-                try:
-                    out.write('\n'.join([field.__str__(), sub]))
-                except UnicodeEncodeError as e:
-                    pass
+        # if field.tag in ['017', '018', '020']:
+        #     with open('output_mrc/' + field.tag + 'c.txt', 'a') as out:
+        #         try:
+        #             out.write('\n'.join([field.__str__(), sub]))
+        #         except UnicodeEncodeError as e:
+        #             pass
         field.subfields[sub_pos] = sub
-    else:
-        if field.tag  in ['017', '018']:
-            with open('output_mrc/017_8u.txt', 'a') as out:
-                try:
-                    out.write(sub)
-                    out.write('\n')
-                except UnicodeEncodeError as e:
-                    pass
+    # else:
+    #     if field.tag  in ['017', '018', '020']:
+    #         with open('output_mrc/' + field.tag + 'u.txt', 'a') as out:
+    #             try:
+    #                 out.write(field.__str__())
+    #                 out.write('\n')
+    #             except UnicodeEncodeError as e:
+    #                 pass
 
 
 def del_pre_punct(
