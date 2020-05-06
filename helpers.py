@@ -17,12 +17,12 @@ linking_entry_fields = ['760', '762', '765', '767', '770', '772', '773',
 with open('output_mrc/abbrev_list.txt', 'r') as f:
     abbrev_list = f.read().split('\n')
 
-abbrev_list.remove('')
+# abbrev_list.remove('')
 
 with open('output_mrc/not_abbrev_list.txt', 'r') as f:
     not_abbrev_list = f.read().split('\n')
 
-not_abbrev_list.remove('')
+# not_abbrev_list.remove('')
 
 
 def append_punct(field, sub_pos, end_str, exempt=[], abbrev_exempt=False):

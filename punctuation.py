@@ -157,26 +157,36 @@ def main():
         reader = MARCReader(fh, to_unicode=True, force_utf8=True)
         for record in reader:
             for num, f in enumerate(record.fields):
-                if f.tag in ['036']:
+                if f.tag in ['036', '240', '243']:
                     add_terminal_punct(f, exempt_punct=['?', '!', '-'])
-                if f.tag in ['010', '024', '025']:
-                    del_terminal_punct(f, abbrev_exempt=False)
+                if f.tag in ['100', '600', '700', '800', '110', '610', '710',
+                             '810', '111', '611', '711', '811', '130', '630',
+                             '696', '697', '698', '699', '730', '790', '791',
+                             '792', '793', '796', '797', '798', '799', '830',
+                             '896', '897', '898', '899']:
+                    add_terminal_punct(f, exempt_punct=['...', '-', ')', '!',
+                                                        '?'])
+                if f.tag in ['010', '024', '025', '052']:
+                    del_terminal_punct(f, abbrev_exem1pt=False)
                 if f.tag in ['015', '020', '027', '028']:
                     del_terminal_punct(f,
                                        exempt=['...', '-', ')', '!', '?'])
-                if f.tag in ['017', '018']:
+                if f.tag in ['017', '018', '060']:
                     del_terminal_punct(f,
                                        exempt=['.',	'?', '!', '-'])
                 if f.tag in ['031']:
                     del_terminal_punct(f,
                                        exempt=['?', '+', '!'])
-                if f.tag in ['032', '034']:
+                if f.tag in ['032', '034', '040', '246', '490']:
                     del_terminal_punct(f)
-                if f.tag in ['037']:
-                    if f.subfields[last_subcode_index(f)] == 'c':
-                        del_terminal_punct(f, exempt_punct=[')'])
-                    else:
-                        del_terminal_punct(f, exempt_punct=['?', '!', '-'])
+                if f.tag in ['051', '060', '070', '222']:
+                    add_terminal_punct(f)
+                if f.tag in ['055']:
+                    del_terminal_punct(f, exempt=['*'])
+                if f.tag in ['070']:
+                    del_terminal_punct(f, exempt=[')'])
+                if f.tag in ['082']:
+                    del_terminal_punct(f, exempt=['/', ':'])
                 if f.tag in ['015']:
                     for n, sub in enumerate(f.subfields):
                         if (sub == 'a' or sub == 'z') and n % 2 == 0:
@@ -201,72 +211,14 @@ def main():
                                 append_punct(f, n+1, ')')
                         if sub == 'c' and n > 0 and n % 2 == 0:
                             append_punct(f, n-1, ' :')
-                        if f.__str__().endswith(tuple([':', ":)"])):
-                            with open('output_mrc/020test.txt', 'a') as out:
-                                try:
-                                    out.write(record.__str__())
-                                except UnicodeEncodeError as e:
-                                    pass
-                # if (f.tag in ['015', '020', '024', '027', '028']
-                #         or f.tag in linking_entry_fields):
-                #     del_terminal_punct(f, exempt=['...', ')', '!', '?'],
-                #                        abbrev_exempt=True)
-                # if f.tag in ['210', '222']:
-                #     enclose_subs(f, 'b', '(', '', ')')
-                # if f.tag in ['100', '600', '700', '800']:
-                #     add_terminal_period(f)
-                # if f.tag in ['210', '222', '251', '270', '340', '341',
-                #                  '342', '355', '357', '363', '365', '366',
-                #                  '377', '380', '381', '382', '384', '385',
-                #                  '386', '388', '938', '956', '987']:
-                #     # remove_pre_punct(f, "!-?]}>)")
-                #     del_terminal_punct(f, del_list=['.'])
-                # if f.tag == '242':
-                #     remove_all_punct(f, 'y')
-                #     control_subs.append('y')
-                #     add_terminal_period(f)
-                #     control_subs.remove('y')
-                # if f.tag == '242' or f.tag == '245':
-                #     add_pre_punct(f, 'c', ' /')
-                #     add_pre_punct(f, 'n', '.', '...!-?')
-                #     # Enumerate subfields to determine if any $p
-                #     # follows a $n
-                #     for n, sub in enumerate(f.subfields):
-                #         if sub == 'p':
-                #             prev = f.subfields[n-1]
-                #             while prev.endswith(' '):
-                #                 prev = prev[:-1]
-                #             # If the previous subf is n, make sure
-                #             # it ends in a comma
-                #             if f.subfields[n-2] == 'n':
-                #                 if not prev.endswith(','):
-                #                     prev = prev + ','
-                #             # Otherwise, make sure the previous
-                #             # subf ends in an ellipsis,
-                #             # exclamation, hyphen, question mark, or
-                #             # period
-                #             elif prev[-1] not in '.!-?':
-                #                 # If not, add period
-                #                 prev = prev + '.'
-                #             # Update the subf if it has been changed
-                #             if f.subfields[n-1] != prev:
-                #                 f.subfields[n-1] = prev
-                # if f.tag == '245':
-                #     # add_pre_punct(f, 'f', ',')
-                #     enclose_subs(f, 'g', '(', '', ')')
-                #     if f['a']:
-                #         add_pre_punct(f, 'k', ' :')
-                #     # subf p following a subf n vs. not
-                #     add_pre_punct(f, 's', '.', '...!-?')
-                #     pre_punct_245b(record, f)
-                # list4 = ['245', '250', '254', '255', '256', '343', '351',
-                #          '352']
-                # if f.tag in list4:
-                #     add_terminal_period(f)
-                # if f.tag == '246':
-                #     remove_terminal_punct(f)
-                # if f.tag == '300':
-                #     add_pre_punct(field, 'b', ' :')
+                if f.tag in ['033']:
+                    for n, sub in enumerate(f.subfields):
+                        if sub == 'c' and n % 2 == 0:
+                            del_from_start(f, n+1, del_list=['.'])
+                if f.tag in ['033']:
+                    for n, sub in enumerate(f.subfields):
+                        if sub in ['a', 'z'] and n % 2 == 0:
+                            append_punct(f, n+1, '(')
             # # Write the edited record to a new file
             # with open('output_mrc/242.mrc', 'ab') as out:
             #     out.write(record.as_marc())
