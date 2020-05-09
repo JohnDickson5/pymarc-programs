@@ -211,7 +211,7 @@ def del_from_end(
     sub = field.subfields[sub_pos]
     # Append a single space to the deleted list so that any trailing
     # spaces caused by deletions
-    if field.tag != '010':
+    if field.tag not in ['010', '016']:
         del_list.append(' ')
     # Initiate a count as a failsafe for infinite looping
     count = 0

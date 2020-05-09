@@ -157,6 +157,36 @@ def main():
         reader = MARCReader(fh, to_unicode=True, force_utf8=True)
         for record in reader:
             for num, f in enumerate(record.fields):
+                # Move past control fields
+                if f.is_control_field():
+                    continue
+                # If the field is undefined, move on
+                if f.tag in ['011', '021']:
+                    continue
+                # Move past fields that are LC/CONSER use only
+                if f.tag in ['012']:
+                    continue
+                # Remove any ending punctuation from fields that
+                # should not end in punctuation
+                if f.tag in ['010', '013', '014', '016', '017', '019', '022', '024', '025', '026', '052']:
+                    del_terminal_punct(f, abbrev_exem1pt=False)
+                # Omit any punctuation from the end of the field unless
+                # it ends with an ellipsis, hyphen, closing
+                # parenthesis, exclamation point, question mark, or
+                # period following an abbreviation
+                if f.tag in ['015', '020', '027', '028']:
+                    del_terminal_punct(f,
+                                       exempt=['...', '-', ')', '!', '?'])
+                # Enclose data in $q in parentheses, separating each
+                # subfield with a semicolon
+                if f.tag in ['015', '027', '028']:
+                    enclose_subs(f, 'q', '(', ' ;', ')')
+                # Remove any parentheses enclosing $a or $z
+                if f.tag in ['015']:
+                    for n, sub in f.subfields:
+                        if sub in ['a', 'z'] and n % 2 == 0:
+                            del_from_start(f, n+1, del_list=['('])
+                            del_from_end(f, n+1, del_list=[')'])
                 if f.tag in ['036', '240', '243']:
                     add_terminal_punct(f, exempt_punct=['?', '!', '-'])
                 if f.tag in ['100', '600', '700', '800', '110', '610', '710',
@@ -166,11 +196,9 @@ def main():
                              '896', '897', '898', '899']:
                     add_terminal_punct(f, exempt_punct=['...', '-', ')', '!',
                                                         '?'])
-                if f.tag in ['010', '024', '025', '052']:
-                    del_terminal_punct(f, abbrev_exem1pt=False)
-                if f.tag in ['015', '020', '027', '028']:
-                    del_terminal_punct(f,
-                                       exempt=['...', '-', ')', '!', '?'])
+                # punctuation unless the field ends with an
+                # abbreviation, an initialism, or data that ends with a
+                # mark of punctuation
                 if f.tag in ['017', '018', '060']:
                     del_terminal_punct(f,
                                        exempt=['.',	'?', '!', '-'])
@@ -192,8 +220,6 @@ def main():
                         if (sub == 'a' or sub == 'z') and n % 2 == 0:
                             del_from_end(f, n+1, del_list=[')'])
                             del_from_start(f, n+1, del_list=['('])
-                if f.tag in ['015', '027', '028']:
-                    enclose_subs(f, 'q', '(', ';', ')')
                 if f.tag in ['020', '024']:
                     for n, sub in enumerate(f.subfields):
                         if sub == 'q' and n % 2 == 0:
@@ -211,6 +237,11 @@ def main():
                                 append_punct(f, n+1, ')')
                         if sub == 'c' and n > 0 and n % 2 == 0:
                             append_punct(f, n-1, ' :')
+                # Follow a fingerprint date with a period
+                if f.tag in ['026']:
+                    for n, sub in enumerate(f.subfields):
+                        if sub == 'c' and n % 2 == 0:
+                            append_punct(f, n+1, '.')
                 if f.tag in ['033']:
                     for n, sub in enumerate(f.subfields):
                         if sub == 'c' and n % 2 == 0:
