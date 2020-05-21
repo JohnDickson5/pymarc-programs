@@ -81,7 +81,10 @@ undefined_fields = [
 
 # This list keeps track of every field without LC or OCLC punctuation
 # instructions
-no_instructions = ['013', '014']
+no_instructions = [
+    '013', '014', '016', '027', '029', '031', '038', '040', '041', '042',
+    '043'
+    ]
 
 
 linking_entry_fields = ['760', '762', '765', '767', '770', '772', '773',
@@ -95,6 +98,7 @@ def main():
         reader = MARCReader(fh, to_unicode=True, force_utf8=True)
         for record in reader:
             for num, f in enumerate(record.fields):
+                original = f.__str__()
                 # Move past control fields, undefined fields, LC/CONSER
                 # fields, or fields without punctuation instructions.
                 if (f.is_control_field() or f.tag in undefined_fields
@@ -102,256 +106,376 @@ def main():
                     continue
                 # Introductory relationship subfields should end in a
                 # colon.
-                if f.subfields[0] == 'i':
-                    append_punct(f, 1, ':')
+                try:
+                    if f.subfields[0] == 'i':
+                        append_punct(f, 1, ':')
+                except IndexError:
+                    print(f)
                 # Remove any ending punctuation without removing
                 # significant spaces.
                 if f.tag in ['010']:
                     del_from_end(f, exempt = [' '], abbrev_exempt = False)
                 if f.tag in ['015']:
+                    # Field does not end with a mark of punctuation
+                    # unless ending in an abbreviation or data ending
+                    # with a mark of punctuation
+                    del_from_end(f, exempt = ['...', '-', ')', '!', '?'],
+                                 abbrev_exempt = True)
                     for n, sub in enumerate(f.subfields):
-                        if sub == 'a' and n % 2 == 0:
-                            # TODO
-                            pass
-                if f.tag in ['010', '016', '017', '019', '022',
-                             '024', '025', '026', '030', '038', '040', '041',
-                             '042', '044', '046', '047', '048', '052', '082',
-                             '083', '085', '088', '092']:
-                    del_terminal_punct(f, abbrev_exempt=False)
-                # No terminal punctuation, unless ending in an
-                # abbreviation
-                if f.tag in ['032', '034', '050', '066', '070', '071', '072',
-                             '090', '246',
-                             '490']:
-                    del_terminal_punct(f)
-                # Omit any punctuation from the end of the field unless
-                # it ends with an ellipsis, hyphen, closing
-                # parenthesis, exclamation point, question mark, or
-                # period following an abbreviation
-                if f.tag in ['015', '020', '027', '028']:
-                    del_terminal_punct(f,
-                                       exempt=['...', '-', ')', '!', '?'])
-                # Enclose data in $q in parentheses, separating each
-                # subfield with a semicolon
-                if f.tag in ['015', '027', '028']:
-                    enclose_subs(f, 'q', '(', ' ;', ')')
-                # Remove any parentheses enclosing $a or $z
-                if f.tag in ['015']:
-                    for n, sub in f.subfields:
+                        # Remove parentheses enclosing subfield a
                         if sub in ['a', 'z'] and n % 2 == 0:
-                            del_from_start(f, n+1, del_list=['('])
-                            del_from_end(f, n+1, del_list=[')'])
-                # Add periods to fields that end in a mark of
-                # punctuation
-                if f.tag in ['036', '240', '243']:
-                    add_terminal_punct(f, exempt_punct=['?', '!', '-'])
-                # Field 037 does not end in a punctuation mark, but
-                # subfield data often does
-                if f.tag in ['037']:
-                    del_terminal_punct(f, exempt=['.', ')', ']'])
-                # Does not end in a period unless the period is part of
-                # the data
-                if f.tag in ['060', '061', '096']:
-                    del_terminal_punct(f, exempt=['.'])
-                # For serially-issued resources with U.S. SuDoc
-                # classification, the number may end in a / or :
-                if f.tag in ['086']:
-                    del_terminal_punct(f, exempt=[':', '/'])
-                # Personal name fields
+                            del_from_start(f, n+1, del_list = ['('])
+                            del_from_end(f, n+1, del_list = [')'])
+                        # Enclose subfields q in parentheses
+                        if sub == 'q' and n % 2 == 0:
+                            if n == 0 or f.subfields[n-2] != 'q':
+                                prepend_punct(f, n+1, '(')
+                            if (last_subcode_index(f) == n
+                                    or f.subfields[n+2] != 'q'):
+                                append_punct(f, n+1, ')')
+                            else:
+                                append_punct(f, n+1, ' ;')
                 if f.tag in ['017', '018']:
-                    del_terminal_punct(f,
-                                       exempt=['.',	'?', '!', '-'])
-                # Field 031 does not get terminal punctuation, but
-                # ?, +, and ! are coded information
-                if f.tag in ['031']:
-                    del_terminal_punct(f,
-                                       exempt=['?', '+', '!'])
-                # No terminal punctuation added, but subfields may end
-                # in an abbreviation, paranthesis or hyphen
-                if f.tag in ['033']:
-                    if last_subcode(f) == 'a':
-                        exempt=['-']
-                        abbrev_exempt=False
-                    elif last_subcode(f) == 'p':
-                        exempt=[')']
-                        abbrev_exempt=True
-                    else:
-                        exempt=['']
-                        abbrev_exempt=False
-                    del_terminal_punct(f, exempt=exempt,
-                                       abbrev_exempt=abbrev_exempt)
-                # Field usually ends in trailing hyphens
-                if f.tag in ['043', '045']:
-                    del_terminal_punct(f, exempt=['-'])
-                # Subfield d is enclosed in brackets
-                if f.tag in ['049']:
-                    enclose_subs(f, 'd', '[', '', ']')
-                if f.tag in ['051', '070', '222']:
-                    add_terminal_punct(f)
-                if f.tag in ['055']:
-                    del_terminal_punct(f, exempt=['*'])
-                # Field sometimes ends in qualifying information
-                if f.tag in ['074', '080', '084']:
-                    del_terminal_punct(f, exempt=[')'])
-                if f.tag in ['082']:
-                    del_terminal_punct(f, exempt=['/', ':'])
-                if f.tag in ['015']:
-                    for n, sub in enumerate(f.subfields):
-                        if (sub == 'a' or sub == 'z') and n % 2 == 0:
-                            del_from_end(f, n+1, del_list=[')'])
-                            del_from_start(f, n+1, del_list=['('])
+                    # Field does not end with a mark of punctuation
+                    # unless ending in an abbreviation or data ending
+                    # with a mark of punctuation.
+                    del_from_end(f, exempt = ['?', '!', '-'],
+                                 abbrev_exempt = True)
                 if f.tag in ['020', '024']:
+                    # Field does not end with a mark of punctuation
+                    # unless ending in an abbreviation or data ending
+                    # with a mark of punctuation.
+                    del_from_end(f, exempt = ['...', '-', ')', '!', '?'],
+                                 abbrev_exempt = True)
                     for n, sub in enumerate(f.subfields):
-                        if sub == 'q' and n % 2 == 0:
-                            if f.subfields[n-2] != 'q':
-                                prepend_punct(f, n+1, '(')
-                            # Check if the f has a next subfield
-                            if len(f.subfields) > n+2:
-                                if f.subfields[n+2] == 'c':
-                                    append_punct(f, n+1, ') :')
-                                elif f.subfields[n+2] == 'q':
-                                    append_punct(f, n+1, ' ;')
-                                else:
-                                    append_punct(f, n+1, ')')
-                            else:
-                                append_punct(f, n+1, ')')
-                        if sub == 'c' and n > 0 and n % 2 == 0:
-                            append_punct(f, n-1, ' :')
-                # Follow a fingerprint date with a period
-                if f.tag in ['026']:
+                        end_punct = ''
+                        if n % 2 != 0 and f.subfields[n-1] == 'q':
+                            # Begin qualifying data with a parenthesis.
+                            if n == 1 or f.subfields[n-3] != 'q':
+                                prepend_punct(f, n, '(')
+                            # Separate subfields q with space-
+                            # semicolon.
+                            if (n == last_subdata_index(f)
+                                    or f.subfields[n+1] != 'q'):
+                                end_punct = ''.join([end_punct, ')'])
+                            elif f.subfields[n+1] == 'q':
+                                    end_punct = ''.join([end_punct, ' ;'])
+                        # Precede subfield c with space-colon.
+                        if (n < last_subdata_index(f)
+                                and f.subfields[n+1] == 'c'):
+                            end_punct = ''.join([end_punct, ' :'])
+                        # Add any necessary ending punctuation.
+                        if end_punct:
+                            append_punct(f, n, end_punct)
+                if f.tag in ['022']:
+                    # Field does not end with a period.
+                    del_from_end(f, del_list = ['.'])
+                if f.tag in ['025']:
+                    #  Field does not end in a mark of punctuation
+                    del_from_end(f)
+                    # Field does not include spaces
+                    remove_punct(f, subfields = ['a'], punct = [' ', '(', ')'])
+                if f.tag in ['027', '028']:
+                    # Field does not end with a mark of punctuation
+                    # unless ending in an abbreviation or data ending
+                    # with a mark of punctuation.
+                    del_from_end(f, exempt = ['...', '-', ')', '!', '?'],
+                                 abbrev_exempt = True)
                     for n, sub in enumerate(f.subfields):
-                        if sub == 'c' and n % 2 == 0:
-                            append_punct(f, n+1, '.')
-                # Period that usually precedes a Cutter number is
-                # omitted in subfield $c.
+                        end_punct = ''
+                        if n % 2 != 0 and f.subfields[n-1] == 'q':
+                            # Begin qualifying data with a parenthesis.
+                            if n == 1 or f.subfields[n-3] != 'q':
+                                prepend_punct(f, n, '(')
+                            # Separate subfields q with space-
+                            # semicolon.
+                            if (n == last_subdata_index(f)
+                                    or f.subfields[n+1] != 'q'):
+                                end_punct = ''.join([end_punct, ')'])
+                            elif f.subfields[n+1] == 'q':
+                                    end_punct = ''.join([end_punct, ' ;'])
+                        # Add any necessary ending punctuation.
+                        if end_punct:
+                            append_punct(f, n, end_punct)
+                # Hyphens and spaces are not carried in the record.
+                if f.tag in ['030']:
+                    remove_punct(f, subfields = ['a'], punct = [' ', '-'])
+                # Hyphens are not carried in the MARC record.
+                if f.tag in ['032']:
+                    remove_punct(f, subfields = ['a'], punct = ['-'])
+                # Omit decimal point that usually precedes cutter.
                 if f.tag in ['033']:
                     for n, sub in enumerate(f.subfields):
-                        if sub == 'c' and n % 2 == 0:
-                            del_from_start(f, n+1, del_list=['.'])
+                        if n % 2 == 0 and sub == 'c':
+                            del_from_start(f, n+1, del_list = ['.'])
+                #  Field does not end in a mark of punctuation
+                if f.tag in ['034']:
+                    del_from_end(f)
+                # No space occurs between the parenthetical MARC code
+                # and the first character position of the control
+                # number.
                 if f.tag in ['035']:
+                    for n, sub in enumerate(field.subfields):
+                        if sub == 'a' and n % 2 == 0:
+                            data = field.subfields[n+1].replace(') ', ')')
+                            field.subfields[n+1] = data
+                # Field ends with a mark of punctuation
+                if f.tag in ['036']:
+                    append_punct(f, last_subdata_index(f), '.',
+                                 exempt = ['-', ')', '!', '?'])
+                if f.tag in ['037']:
+                    # SubFields does not end with a mark of punctuation
+                    # unless ending in an abbreviation or data ending
+                    # with a mark of punctuation.
                     for n, sub in enumerate(f.subfields):
-                        if sub in ['a', 'z'] and n % 2 == 0:
-                            append_punct(f, n+1, '(')
-                # Personal names
-                if f.tag in ['100', '600', '696', '700', '790', '796', '800',
-                             '896']:
-                    for n, sub in f.subfields:
-                        # Preced titles and terms of address with a ,
-                        if sub == 'c' and n % 2 == 0:
-                            if f.subfields[n+1][0] != '(':
-                                append_punct(f, n-1, ',', exempt=['"'])
-                        # Enclose fuller form of name in parentheses,
-                        # without putting any preceding punctuation
-                        # for the next subfield in parentheses
-                        if sub == 'q' and n % 2 == 0:
-                            prepend_punct(f, n+1, '(')
-                            if f.subfields[n+2] in 'dej':
-                                append_punct(f, n+1, '),')
-                            elif f.subfields[n+2] in 'fklpt':
-                                append_punct(f, n+1, ').')
-                            elif f.subfields[n+2] in 'g':
-                                append_punct(f, n+1, ') :')
-                            else:
-                                append_punct(f, n+1, ')')
-                    # Precede dates and attribution qualifiers with a
-                    # comma
-                    precede_sub(f, 'd', ',', exempt=['"'])
-                    precede_sub(f, 'j', ',', exempt=['"'])
-                    # Precede miscellaneous info with a colon
-                    precede_sub(f, 'g', ' :')
-                    # Punctuation preceding n is determined by type of work
-                    # No punctuation precedes affiliation
-                    del_pre_punct(f, subfields=['u'], exempt=[')'],
-                                  abbrev_exempt=True)
-                    # punctuation unless the field ends with an
-                    # abbreviation, an initialism, or data that ends with a
-                    # mark of punctuation
-                    add_terminal_punct(f, exempt_punct=['...', '-', ')', '!',
-                                                        '?'])
-                if f.tag in ['100', '110']:
-                    # Precede the name of a part of a work with a
-                    # period, unless following the number of the part
-                    if sub == 'p' and n % 2 == 0:
-                        if f.subfields[n-2] == 'n':
-                            append_punct(f, n-1, ',', exempt=['"'])
-                        else:
-                            append_punct(f, n-1, '.', exempt=['"'])
-                    # Relator terms are preceded by a comma unless
-                    # following an open date
-                    precede_sub(f, 'e', ',', exempt=['"', '-'])
-                    # Preced date, forms, languages, and titles of
-                    # works with a period
-                    precede_sub(f, 'f', '.', exempt=['"'])
-                    precede_sub(f, 'k', '.', exempt=['"'])
-                    precede_sub(f, 'l', '.', exempt=['"'])
-                    precede_sub(f, 't', '.')
-                # Corporate names
-                if f.tag in ['110', '610', '697', '710', '791', '797', '810',
-                             '897']:
-                    for n, sub in enumerate(f.subfields):
-                        # Enclose disambiguating information in
-                        # parenthese, and separate each subfield with
-                        # a space-colon
-                        if sub in ['d', 'g', 'n'] and n % 2 == 0:
-                            if f.subfields[n-2] in ['c', 'd', 'g', 'n']:
-                                append_punct(f, n-1, ' :')
-                            else:
-                                prepend_punct(f, n, '(')
-                        # Separate each location with a semicolon
-                        elif sub == 'c' and n % 2 == 0:
-                            if f.subfields[n-2] in ['d', 'g', 'n']:
-                                append_punct(f, n-1, ' :')
-                            elif f.subfields[n-2] == 'c':
-                                append_punct(f, n-1, ';')
-                            else:
-                                prepend_punct(f, n+1, '(')
-                        # Subject subdivisions have no preceding
-                        # punctuation
-                        elif sub in ['v', 'x', 'y', 'z'] and n % 2 == 0:
-                            del_from_end(f, n-1, exempt=[')'],
-                                         abbrev_exempt=True)
-                    # Precede each subordinate unit with a period
-                    precede_sub(f, 'b', '.', exempt=['"'])
-                    # No punctuation precedes affiliation or subject
-                    # subdivisions
-                    del_pre_punct(f, subfields=['u', 'v', 'x', 'y', 'z'],
-                                  exempt=[')'], abbrev_exempt=True)
-            if f.tag in ['110']:
-                # No punctuation separates form and part
-                for n, sub in f.subfields:
-                    if sub == 'p' and n % 2 == 0 and f.subfields[n-2] == 'k':
-                        del_from_end(f, n-1, abbrev_exempt=True)
-            if f.tag in ['110', '111']:
-                end_punct = ''
-                start_punct = ''
-                for n, sub in f.subfields:
-                    if f.subfields[n-1] in ['c', 'd', 'n'] and n % 2 != 0:
-                        # Separate c subfields with space-semicolon
-                        if f.subfields[n-1] == 'c' and f.subfields[n+1] == 'c':
-                            end_punct = ';'
-                        # Close qualifying subfields off from following
-                        # subfields
-                        elif (n == len(f.subfields)-1
-                                or f.subfields[n+1] not in ['c', 'd', 'n']):
-                            end_punct = ')'
-                        # Separate with space-colon
-                        else:
-                            end_punct = ' :'
-                        # Close qualifying subfields off from preceding
-                        # subfields
-                        if f.subfields[n-3] not in ['c', 'd', 'n']:
-                            start_punct = '('
-                    # Precede subfields with period
-                    if f.subfields[n+1] in ['e', 'f', 'k', 'l'] and n % 2 != 0:
-                        end_punct = ''.join([end_punct, '.'])
-                    # Precede subfields with comma
-                    elif f.subfields[n+1] in ['g', 'j'] and n % 2 != 0:
-                        end_punct = ''.join([end_punct, ','])
-                    # Add the punctuation
-                    if end_punct:
-                        append_punct(f, n, end_punct)
-                    if start_punct:
-                        prepend_punct(f, n, start_punct)
+                        if n % 2 != 0:
+                            del_from_end(f, n, exempt = ['?', '!', '-', ')'],
+                                         abbrev_exempt = True)
+                # if original != f.__str__():
+                #     print(f'original: {original}')
+                #     print(f'changed: {f}')
+                if f.tag == '043':
+                    if len(f['a']) != 7 or f['b']:
+                        print(f)
+            #     if f.tag in ['010', '016', '017', '019', '022',
+            #                  '024', '025', '026', '030', '038', '040', '041',
+            #                  '042', '044', '046', '047', '048', '052', '082',
+            #                  '083', '085', '088', '092']:
+            #         del_terminal_punct(f, abbrev_exempt=False)
+            #     # No terminal punctuation, unless ending in an
+            #     # abbreviation
+            #     if f.tag in ['032', '034', '050', '066', '070', '071', '072',
+            #                  '090', '246',
+            #                  '490']:
+            #         del_terminal_punct(f)
+            #     # Omit any punctuation from the end of the field unless
+            #     # it ends with an ellipsis, hyphen, closing
+            #     # parenthesis, exclamation point, question mark, or
+            #     # period following an abbreviation
+            #     if f.tag in ['015', '020', '027', '028']:
+            #         del_terminal_punct(f,
+            #                            exempt=['...', '-', ')', '!', '?'])
+            #     # Enclose data in $q in parentheses, separating each
+            #     # subfield with a semicolon
+            #     if f.tag in ['015', '027', '028']:
+            #         enclose_subs(f, 'q', '(', ' ;', ')')
+            #     # Remove any parentheses enclosing $a or $z
+            #     if f.tag in ['015']:
+            #         for n, sub in f.subfields:
+            #             if sub in ['a', 'z'] and n % 2 == 0:
+            #                 del_from_start(f, n+1, del_list=['('])
+            #                 del_from_end(f, n+1, del_list=[')'])
+            #     # Add periods to fields that end in a mark of
+            #     # punctuation
+            #     if f.tag in ['036', '240', '243']:
+            #         add_terminal_punct(f, exempt_punct=['?', '!', '-'])
+            #     # Field 037 does not end in a punctuation mark, but
+            #     # subfield data often does
+            #     if f.tag in ['037']:
+            #         del_terminal_punct(f, exempt=['.', ')', ']'])
+            #     # Does not end in a period unless the period is part of
+            #     # the data
+            #     if f.tag in ['060', '061', '096']:
+            #         del_terminal_punct(f, exempt=['.'])
+            #     # For serially-issued resources with U.S. SuDoc
+            #     # classification, the number may end in a / or :
+            #     if f.tag in ['086']:
+            #         del_terminal_punct(f, exempt=[':', '/'])
+            #     # Personal name fields
+            #     if f.tag in ['017', '018']:
+            #         del_terminal_punct(f,
+            #                            exempt=['.',	'?', '!', '-'])
+            #     # Field 031 does not get terminal punctuation, but
+            #     # ?, +, and ! are coded information
+            #     if f.tag in ['031']:
+            #         del_terminal_punct(f,
+            #                            exempt=['?', '+', '!'])
+            #     # No terminal punctuation added, but subfields may end
+            #     # in an abbreviation, paranthesis or hyphen
+            #     if f.tag in ['033']:
+            #         if last_subcode(f) == 'a':
+            #             exempt=['-']
+            #             abbrev_exempt=False
+            #         elif last_subcode(f) == 'p':
+            #             exempt=[')']
+            #             abbrev_exempt=True
+            #         else:
+            #             exempt=['']
+            #             abbrev_exempt=False
+            #         del_terminal_punct(f, exempt=exempt,
+            #                            abbrev_exempt=abbrev_exempt)
+            #     # Field usually ends in trailing hyphens
+            #     if f.tag in ['043', '045']:
+            #         del_terminal_punct(f, exempt=['-'])
+            #     # Subfield d is enclosed in brackets
+            #     if f.tag in ['049']:
+            #         enclose_subs(f, 'd', '[', '', ']')
+            #     if f.tag in ['051', '070', '222']:
+            #         add_terminal_punct(f)
+            #     if f.tag in ['055']:
+            #         del_terminal_punct(f, exempt=['*'])
+            #     # Field sometimes ends in qualifying information
+            #     if f.tag in ['074', '080', '084']:
+            #         del_terminal_punct(f, exempt=[')'])
+            #     if f.tag in ['082']:
+            #         del_terminal_punct(f, exempt=['/', ':'])
+            #     if f.tag in ['015']:
+            #         for n, sub in enumerate(f.subfields):
+            #             if (sub == 'a' or sub == 'z') and n % 2 == 0:
+            #                 del_from_end(f, n+1, del_list=[')'])
+            #                 del_from_start(f, n+1, del_list=['('])
+            #     if f.tag in ['020', '024']:
+            #         for n, sub in enumerate(f.subfields):
+            #             if sub == 'q' and n % 2 == 0:
+            #                 if f.subfields[n-2] != 'q':
+            #                     prepend_punct(f, n+1, '(')
+            #                 # Check if the f has a next subfield
+            #                 if len(f.subfields) > n+2:
+            #                     if f.subfields[n+2] == 'c':
+            #                         append_punct(f, n+1, ') :')
+            #                     elif f.subfields[n+2] == 'q':
+            #                         append_punct(f, n+1, ' ;')
+            #                     else:
+            #                         append_punct(f, n+1, ')')
+            #                 else:
+            #                     append_punct(f, n+1, ')')
+            #             if sub == 'c' and n > 0 and n % 2 == 0:
+            #                 append_punct(f, n-1, ' :')
+            #     # Follow a fingerprint date with a period
+            #     if f.tag in ['026']:
+            #         for n, sub in enumerate(f.subfields):
+            #             if sub == 'c' and n % 2 == 0:
+            #                 append_punct(f, n+1, '.')
+            #     # Period that usually precedes a Cutter number is
+            #     # omitted in subfield $c.
+            #     if f.tag in ['033']:
+            #         for n, sub in enumerate(f.subfields):
+            #             if sub == 'c' and n % 2 == 0:
+            #                 del_from_start(f, n+1, del_list=['.'])
+            #     if f.tag in ['035']:
+            #         for n, sub in enumerate(f.subfields):
+            #             if sub in ['a', 'z'] and n % 2 == 0:
+            #                 append_punct(f, n+1, '(')
+            #     # Personal names
+            #     if f.tag in ['100', '600', '696', '700', '790', '796', '800',
+            #                  '896']:
+            #         for n, sub in f.subfields:
+            #             # Preced titles and terms of address with a ,
+            #             if sub == 'c' and n % 2 == 0:
+            #                 if f.subfields[n+1][0] != '(':
+            #                     append_punct(f, n-1, ',', exempt=['"'])
+            #             # Enclose fuller form of name in parentheses,
+            #             # without putting any preceding punctuation
+            #             # for the next subfield in parentheses
+            #             if sub == 'q' and n % 2 == 0:
+            #                 prepend_punct(f, n+1, '(')
+            #                 if f.subfields[n+2] in 'dej':
+            #                     append_punct(f, n+1, '),')
+            #                 elif f.subfields[n+2] in 'fklpt':
+            #                     append_punct(f, n+1, ').')
+            #                 elif f.subfields[n+2] in 'g':
+            #                     append_punct(f, n+1, ') :')
+            #                 else:
+            #                     append_punct(f, n+1, ')')
+            #         # Precede dates and attribution qualifiers with a
+            #         # comma
+            #         precede_sub(f, 'd', ',', exempt=['"'])
+            #         precede_sub(f, 'j', ',', exempt=['"'])
+            #         # Precede miscellaneous info with a colon
+            #         precede_sub(f, 'g', ' :')
+            #         # Punctuation preceding n is determined by type of work
+            #         # No punctuation precedes affiliation
+            #         del_pre_punct(f, subfields=['u'], exempt=[')'],
+            #                       abbrev_exempt=True)
+            #         # punctuation unless the field ends with an
+            #         # abbreviation, an initialism, or data that ends with a
+            #         # mark of punctuation
+            #         add_terminal_punct(f, exempt_punct=['...', '-', ')', '!',
+            #                                             '?'])
+            #     if f.tag in ['100', '110']:
+            #         # Precede the name of a part of a work with a
+            #         # period, unless following the number of the part
+            #         if sub == 'p' and n % 2 == 0:
+            #             if f.subfields[n-2] == 'n':
+            #                 append_punct(f, n-1, ',', exempt=['"'])
+            #             else:
+            #                 append_punct(f, n-1, '.', exempt=['"'])
+            #         # Relator terms are preceded by a comma unless
+            #         # following an open date
+            #         precede_sub(f, 'e', ',', exempt=['"', '-'])
+            #         # Preced date, forms, languages, and titles of
+            #         # works with a period
+            #         precede_sub(f, 'f', '.', exempt=['"'])
+            #         precede_sub(f, 'k', '.', exempt=['"'])
+            #         precede_sub(f, 'l', '.', exempt=['"'])
+            #         precede_sub(f, 't', '.')
+            #     # Corporate names
+            #     if f.tag in ['110', '610', '697', '710', '791', '797', '810',
+            #                  '897']:
+            #         for n, sub in enumerate(f.subfields):
+            #             # Enclose disambiguating information in
+            #             # parenthese, and separate each subfield with
+            #             # a space-colon
+            #             if sub in ['d', 'g', 'n'] and n % 2 == 0:
+            #                 if f.subfields[n-2] in ['c', 'd', 'g', 'n']:
+            #                     append_punct(f, n-1, ' :')
+            #                 else:
+            #                     prepend_punct(f, n, '(')
+            #             # Separate each location with a semicolon
+            #             elif sub == 'c' and n % 2 == 0:
+            #                 if f.subfields[n-2] in ['d', 'g', 'n']:
+            #                     append_punct(f, n-1, ' :')
+            #                 elif f.subfields[n-2] == 'c':
+            #                     append_punct(f, n-1, ';')
+            #                 else:
+            #                     prepend_punct(f, n+1, '(')
+            #             # Subject subdivisions have no preceding
+            #             # punctuation
+            #             elif sub in ['v', 'x', 'y', 'z'] and n % 2 == 0:
+            #                 del_from_end(f, n-1, exempt=[')'],
+            #                              abbrev_exempt=True)
+            #         # Precede each subordinate unit with a period
+            #         precede_sub(f, 'b', '.', exempt=['"'])
+            #         # No punctuation precedes affiliation or subject
+            #         # subdivisions
+            #         del_pre_punct(f, subfields=['u', 'v', 'x', 'y', 'z'],
+            #                       exempt=[')'], abbrev_exempt=True)
+            # if f.tag in ['110']:
+            #     # No punctuation separates form and part
+            #     for n, sub in f.subfields:
+            #         if sub == 'p' and n % 2 == 0 and f.subfields[n-2] == 'k':
+            #             del_from_end(f, n-1, abbrev_exempt=True)
+            # if f.tag in ['110', '111']:
+            #     end_punct = ''
+            #     start_punct = ''
+            #     for n, sub in f.subfields:
+            #         if f.subfields[n-1] in ['c', 'd', 'n'] and n % 2 != 0:
+            #             # Separate c subfields with space-semicolon
+            #             if f.subfields[n-1] == 'c' and f.subfields[n+1] == 'c':
+            #                 end_punct = ';'
+            #             # Close qualifying subfields off from following
+            #             # subfields
+            #             elif (n == len(f.subfields)-1
+            #                     or f.subfields[n+1] not in ['c', 'd', 'n']):
+            #                 end_punct = ')'
+            #             # Separate with space-colon
+            #             else:
+            #                 end_punct = ' :'
+            #             # Close qualifying subfields off from preceding
+            #             # subfields
+            #             if f.subfields[n-3] not in ['c', 'd', 'n']:
+            #                 start_punct = '('
+            #         # Precede subfields with period
+            #         if f.subfields[n+1] in ['e', 'f', 'k', 'l'] and n % 2 != 0:
+            #             end_punct = ''.join([end_punct, '.'])
+            #         # Precede subfields with comma
+            #         elif f.subfields[n+1] in ['g', 'j'] and n % 2 != 0:
+            #             end_punct = ''.join([end_punct, ','])
+            #         # Add the punctuation
+            #         if end_punct:
+            #             append_punct(f, n, end_punct)
+            #         if start_punct:
+            #             prepend_punct(f, n, start_punct)
 
                 # Enclose disambiguating information in
                 # parenthese, and separate each subfield with
@@ -362,20 +486,20 @@ def main():
                 #     else:
                 #         prepend_punct(f, n, '(')
                 # Separate each location with a semicolon
-                elif sub == 'c' and n % 2 == 0:
-                    if f.subfields[n-2] in ['d', 'g', 'n']:
-                        append_punct(f, n-1, ' :')
-                    elif f.subfields[n-2] == 'c':
-                        append_punct(f, n-1, ';')
-                    else:
-                        prepend_punct(f, n+1, '(')
+                # elif sub == 'c' and n % 2 == 0:
+                #     if f.subfields[n-2] in ['d', 'g', 'n']:
+                #         append_punct(f, n-1, ' :')
+                #     elif f.subfields[n-2] == 'c':
+                #         append_punct(f, n-1, ';')
+                #     else:
+                #         prepend_punct(f, n+1, '(')
                 # Subject subdivisions have no preceding
                 # punctuation
                 # elif sub in ['v', 'x', 'y', 'z'] and n % 2 == 0:
                 #     del_from_end(f, n-1, exempt=[')'],
                 #                  abbrev_exempt=True)
             # # Write the edited record to a new file
-            # with open('output_mrc/242.mrc', 'ab') as out:
+            # with open('output_mrc/015.mrc', 'ab') as out:
             #     out.write(record.as_marc())
 
 if __name__ == '__main__':

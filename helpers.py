@@ -67,7 +67,7 @@ def append_punct(field, sub_pos, end_str, exempt=[], abbrev_exempt=False):
             if sub.endswith(exemption):
                 # If the sub ends in a quotation mark, make sure the
                 # character is acceptable
-                if exemption = '"':
+                if exemption == '"':
                     end_quote = True
                     sub = sub[:-1]
                 else:
@@ -101,7 +101,7 @@ def del_from_end(field, sub_pos=None, del_list=any_punct, exempt=[],
     """Remove a string from the end of a subfield"""
     # If a subfield position was not provided, edit the final subfield
     if sub_pos == None:
-        sub_pos = last_subdata_pos(field)
+        sub_pos = last_subdata_index(field)
     # Get the subfield data
     sub = field.subfields[sub_pos]
     # Initiate a count as a failsafe for infinite looping
@@ -113,7 +113,7 @@ def del_from_end(field, sub_pos=None, del_list=any_punct, exempt=[],
         if abbrev_exempt:
             if sub.endswith(tuple(abbrev_list)):
                 break
-            elif sub.endwith(tuple(not_abbrev_list)):
+            elif sub.endswith(tuple(not_abbrev_list)):
                 sub = sub[:-1]
         if count == 100:
             print("Loop trouble")
@@ -262,7 +262,7 @@ def last_subcode(field):
 def last_subcode_index(field, ignore_control_subs=True):
     # Costruct a list of control subfields based on the field tag
     control_subs = []
-    if ignore_control_subs = True:
+    if ignore_control_subs == True:
         if field.tag in ['031', '370', '381', '505', '506', '510', '514',
                          '520', '530', '538', '540', '542', '545', '552',
                          '555', '561', '563', '852', '856', '880', '883',
@@ -512,15 +512,14 @@ def prepend_punct(field, sub_pos, pre_str):
         field.subfields[sub_pos] = ''.join([pre_str, sub])
 
 
-def remove_all_punct(field, subfields=[]):
+def remove_punct(field, subfields=[], punct=any_punct):
     """Remove all punctuation in field or subfield"""
     if subfields:
         for n, sub in enumerate(field.subfields):
             # Only edit subfields found in the subfield list
             if sub in subfields and n % 2 == 0:
                 data = field.subfields[n+1]
-                data = data.replace('.', '')
-                for i in any_punct:
+                for i in punct:
                     data = data.replace(i, '')
                 field.subfields[n+1] = data
     else:
@@ -528,7 +527,6 @@ def remove_all_punct(field, subfields=[]):
             # Edit all subfield data, leaving codes alone
             if n % 2 != 0:
                 data = field.subfields[n]
-                data = data.replace('.', '')
-                for i in any_punct:
+                for i in punct:
                     data = data.replace(i, '')
                 field.subfields[n] = data
