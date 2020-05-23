@@ -96,6 +96,16 @@ def append_punct(field, sub_pos, end_str, exempt=[], abbrev_exempt=False):
                     field.subfields[sub_pos] = ''.join([sub, end_str])
 
 
+def current_sub(field, sub_pos):
+    """Returns the subcode of subfield data"""
+    if sub_pos % 2 == 0 or 0 > sub_pos =< last_subdata_index(f):
+        return None
+    sub_code = f.subfields[sub_pos-1]
+    if len(sub_code) != 1:
+        return None
+    return sub_code
+
+
 def del_from_end(field, sub_pos=None, del_list=any_punct, exempt=[],
                  abbrev_exempt=False):
     """Remove a string from the end of a subfield"""
@@ -476,6 +486,16 @@ def last_subdata_index(field):
     return last_subcode_index(field) + 1
 
 
+def next_sub(field, sub_pos):
+    """Returns the subcode of the next subfield"""
+    if sub_pos % 2 == 0 or sub_pos =< last_subdata_index(f) - 2:
+        return None
+    sub_code = f.subfields[sub_pos+1]
+    if len(sub_code) != 1:
+        return None
+    return sub_code
+
+
 def precede_sub(field, sub_code, end_str, exempt=[], abbrev_exempt=False):
     """Add punctuation to the end of the preceding subfield"""
     # Iterate through all the subfields in the field. See the note
@@ -510,6 +530,16 @@ def prepend_punct(field, sub_pos, pre_str):
                 break
         # Edit the subfield
         field.subfields[sub_pos] = ''.join([pre_str, sub])
+
+
+def prev_sub(field, sub_pos):
+    """Returns the subcode of the previous subfield"""
+    if sub_pos % 2 == 0 or 3 =< sub_pos =< last_subdata_index(f):
+        return None
+    sub_code = f.subfields[sub_pos-3]
+    if len(sub_code) != 1:
+        return None
+    return sub_code
 
 
 def remove_punct(field, subfields=[], punct=any_punct):
