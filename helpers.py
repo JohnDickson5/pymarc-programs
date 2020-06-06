@@ -47,7 +47,7 @@ def add_terminal_punct(field, end_punct='.', exempt_subs=[], exempt_punct=[],
                      abbrev_exempt)
 
 
-def append_punct(field, sub_pos, end_str, exempt=[], abbrev_exempt=False):
+def append_punct(field, sub_pos, end_str, exempt=[], abbrev_exempt=True):
     """Add a string to the end of a subfield if it does not already
     end in that string or an exemption. For the 'exempt' list, include
     only strings that are always exempt for receiving the endi ng (that
@@ -74,33 +74,60 @@ def append_punct(field, sub_pos, end_str, exempt=[], abbrev_exempt=False):
                     exempt_ending = True
                     break
         if not exempt_ending:
+            end = ''
+            for index, char in enumerate(reversed(sub)):
+                if index > 0:
+                    if char == ' ' or char in any_punct:
+                        end = sub[-index-1:]
+                        break
+            if end == '':
+                end = sub
             # Warn if the field ends in a period; as periods ending
             # abbreviations are sometimes treated differently from
             # other periods, it is not safe to take action based on an
             # ending period.
             if sub.endswith('.') and abbrev_exempt:
-                # TODO: get user input
-                print(f"Possible ending abbreviation: {sub}")
-            else:
-                # Remove partial punctuation or spaces from the end of
-                # the subfield
-                while sub != '':
-                    if sub[-1] in end_str or sub[-1] in ' ':
-                        sub = sub[:-1]
+                if end not in abbrev_list:
+                    ans = ''
+                    while ans != 'y' and ans != 'n':
+                        print(sub)
+                        ans = input("""Does this subfield end in an"""
+                                     + """ abbreviation (y/n): """)
+                        ans = ans.strip().lower()
+                    if ans == 'y':
+                        abbrev_list.append(end)
+                        with open('output_mrc/abbrev_list.txt', 'a') as out:
+                            try:
+                                out.write(end + '\n')
+                            except UnicodeEncodeError as e:
+                                pass
                     else:
-                        break
-                # Edit the subfield
-                if end_quote:
-                    field.subfields[sub_pos] = ''.join([sub, end_str, '"'])
+                        not_abbrev_list.append(end)
+                        with open('output_mrc/not_abbrev_list.txt', 'a') as out:
+                            try:
+                                out.write(end + '\n')
+                            except UnicodeEncodeError as e:
+                                pass
+                        sub = sub[:-1]
+            # Remove partial punctuation or spaces from the end of
+            # the subfield
+            while sub != '':
+                if sub[-1] in end_str or sub[-1] in ' ':
+                    sub = sub[:-1]
                 else:
-                    field.subfields[sub_pos] = ''.join([sub, end_str])
+                    break
+            # Edit the subfield
+            if end_quote:
+                field.subfields[sub_pos] = ''.join([sub, end_str, '"'])
+            else:
+                field.subfields[sub_pos] = ''.join([sub, end_str])
 
 
 def current_sub(field, sub_pos):
     """Returns the subcode of subfield data"""
-    if sub_pos % 2 == 0 or 0 > sub_pos =< last_subdata_index(f):
+    if sub_pos % 2 == 0 or 0 > sub_pos <= last_subdata_index(field):
         return None
-    sub_code = f.subfields[sub_pos-1]
+    sub_code = field.subfields[sub_pos-1]
     if len(sub_code) != 1:
         return None
     return sub_code
@@ -488,9 +515,9 @@ def last_subdata_index(field):
 
 def next_sub(field, sub_pos):
     """Returns the subcode of the next subfield"""
-    if sub_pos % 2 == 0 or sub_pos =< last_subdata_index(f) - 2:
+    if sub_pos % 2 == 0 or sub_pos >= last_subdata_index(field)-1:
         return None
-    sub_code = f.subfields[sub_pos+1]
+    sub_code = field.subfields[sub_pos+1]
     if len(sub_code) != 1:
         return None
     return sub_code
@@ -534,9 +561,9 @@ def prepend_punct(field, sub_pos, pre_str):
 
 def prev_sub(field, sub_pos):
     """Returns the subcode of the previous subfield"""
-    if sub_pos % 2 == 0 or 3 =< sub_pos =< last_subdata_index(f):
+    if sub_pos % 2 == 0 or 3 <= sub_pos <= last_subdata_index(field):
         return None
-    sub_code = f.subfields[sub_pos-3]
+    sub_code = field.subfields[sub_pos-3]
     if len(sub_code) != 1:
         return None
     return sub_code
