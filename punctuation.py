@@ -29,8 +29,7 @@ undefined_fields = [
     '214', '215', '216', '217', '218', '219', '220', '221', '223', '224',
     '225', '226', '227', '228', '229', '230', '231', '232', '233', '234',
     '235', '236', '237', '238', '239', '241', '244', '248', '249', '252',
-    '253', '259', '261', '262',
-    '265', '266', '267', '268', '269', '271', '272', '273',
+    '253', '259', '265', '266', '267', '268', '269', '271', '272', '273',
     '274', '275', '276', '277', '278', '279', '280', '281', '282', '283',
     '284', '285', '286', '287', '288', '289', '290', '291', '292', '293',
     '294', '295', '296', '297', '298', '299', '301', '302', '303', '304',
@@ -224,7 +223,7 @@ def punctuate(r, f):
         append_punct(f, last_subdata_index(f), '.',
                      exempt = ['-', ')', '!', '?'])
     if f.tag in ['037']:
-        # SubFields does not end with a mark of punctuation
+        # subfields does not end with a mark of punctuation
         # unless ending in an abbreviation or data ending
         # with a mark of punctuation.
         for n, sub in enumerate(f.subfields):
@@ -270,7 +269,7 @@ def punctuate(r, f):
             del_from_start(f, n, del_list = ['[', '('])
             del_from_end(f, n, del_list = [']', ')'])
     # Field ends in a period.
-    if f.tag in ['051', '254', '256]':
+    if f.tag in ['051', '254', '256']:
         append_punct(f, last_subdata_index(f), '.')
     if f.tag == '052':
         for n, sub in enumerate(f.subfields):
@@ -879,16 +878,23 @@ def punctuate(r, f):
                 append_punct(f, n, '.')
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
-    if f.tag in ['251', '270', '987']:
-        # Omit preceding and terminal punctuation from subfields.
-        if n % 2 != 0:
-            del_from_end(f, n, exempt = ['...', '!', '-', '?', ']', '>', ')'],
-                         abbrev_exempt = True)
+    if f.tag in ['251', '270', '340', '341', '342', '355', '357', '363', '365',
+                 '366', '377', '380', '381', '382', '384', '385', '386', '388',
+                 '987']:
+        # Omit preceding from subfields, with the common OCLC end
+        # punctuation exceptions.
+        for n, sub in enumerate(f.subfields):
+            if n % 2 != 0 and n != last_subdata_index(n):
+                del_from_end(f, n,
+                             exempt = ['...', '!', '-', '?', ']', '>', ')'],
+                             abbrev_exempt = True)
+        # Omit terminal punctuation except ending abbreviations.
+        del_from_end(f, abbrev_exempt = True)
     if f.tag == '255':
         for n, sub in enumerate(f.subfields):
             end_punct = ''
             exempt = []
-            # Subfields c, d, and e are enclosed in a single set of
+            # subfields c, d, and e are enclosed in a single set of
             # parentheses.
             if current_sub(f, n) in ['c', 'd', 'e']:
                 if prev_sub(f, n) not in ['c', 'd', 'e']:
@@ -943,7 +949,7 @@ def punctuate(r, f):
             # Precede subfield 3 with ':', or ' :' if following an open
             # date.
             if n == 1 and current_sub(f, n) == '3':
-                if f.SubFields[n].endswith(tuple(['-', '- ', '->'])):
+                if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
                     end_punct = ''.join([end_punct, ' :'])
                 else:
                     end_punct = ''.join([end_punct, ':'])
@@ -956,12 +962,42 @@ def punctuate(r, f):
             # Precede subfield c with a comma.
             elif next_sub(f, n) == 'c':
                 end_punct = ''.join([end_punct, ','])
-            #  Field ends with a period.
+            # Field ends with a period.
             if n == last_subdata_index(f):
                 end_punct = ''.join([end_punct, '.'])
                 exempt = ['...', '!', '-', '?', ']', '>', ')']
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
+    # All punctuation for this field is taken from LC's examples,
+    # although subfield guidelines and most subfields are shown with
+    # contradictory preceding punctuation.
+    if f.tag == '261':
+        for n, sub in enumerate(f.subfields):
+            end_punct = ''
+            exempt = []
+            if next_sub(f, n) == 'a':
+                end_punct = ''.join([end_punct, ';'])
+                exempt.append(',')
+            elif next_sub(f, n) == 'b' or n == last_subdata_index(f):
+                end_punct = ''.join([end_punct, '.'])
+                exempt.append(',')
+            elif next_sub(f, n) == 'd':
+                end_punct = ''.join([end_punct, ','])
+            elif next_sub(f, n) == 'd':
+                end_punct = ''.join([end_punct, ','])
+                exempt.append('.')
+            if end_punct:
+                append_punct(f, n, end_punct)
+    if f.tag == '262':
+        for n, sub in enumerate(f.subfields):
+            if current_sub(f, n) in ['k', 'l']:
+                 end_punct = ''.join([end_punct, '.'])
+            # Field ends with a period.
+            elif n == last_subdata_index(f):
+                end_punct = ''.join([end_punct, '.'])
+                exempt = ['...', '!', '-', '?', ']', '>', ')']
+            if end_punct:
+                append_punct(f, n, end_punct)
     # Omit all punctuation except hyphens.
     if f.tag in ['263', '994']:
         f = [x for x in f if x not in any_punct or x == '-']
@@ -975,7 +1011,7 @@ def punctuate(r, f):
                 # Precede subfield a with ' ;' unless it is the 1st
                 # subfield or occurs after a subfield 3.
                 if n == 1 and current_sub(f, n) == '3':
-                    if f.SubFields[n].endswith(tuple(['-', '- ', '->'])):
+                    if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
                         end_punct = ''.join([end_punct, ' :'])
                     else:
                         end_punct = ''.join([end_punct, ':'])
@@ -997,7 +1033,7 @@ def punctuate(r, f):
             # Follow an initial subfield 3 with ':' or ' :' if
             # following an open date.
             if n == 1 and current_sub(f, n) == '3':
-                if f.SubFields[n].endswith(tuple(['-', '- ', '->'])):
+                if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
                     end_punct = ''.join([end_punct, ' :'])
                 else:
                     end_punct = ''.join([end_punct, ':'])
@@ -1067,6 +1103,121 @@ def punctuate(r, f):
                 append_punct(f, n, ',')
         # Field does not end with final punctuation.
         del_from_end(f, exempt = ['-', '>', ')'], abbrev_exempt = True)
+    if f.tag in ['336', '337', '338']:
+        # Omit preceding and terminal punctuation from subfields, with
+        # no exceptions.
+        if n % 2 != 0:
+            del_from_end(f, n)
+    if f.tag == '343':
+        for n, sub in enumerate(f.subfields):
+            end_punct = ''
+            if next_sub(f, n) in ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']:
+                end_punct = ';'
+            #  Field ends with a period.
+            if n == last_subdata_index(f):
+                end_punct = '.'
+            if end_punct:
+                append_punct(f, n, end_punct)
+    if f.tag in ['344', '345', '346', '347', '348']:
+        # Omit preceding and terminal punctuation from subfields, with
+        # except for periods after abbreviations.
+        if n % 2 != 0:
+            del_from_end(f, n, abbrev_exempt = True)
+    if f.tag == '351':
+        for n, sub in enumerate(f.subfields):
+            end_punct = ''
+            # Follow an initial subfield 3 with ':' or ' :' if
+            # following an open date.
+            if n == 1 and current_sub(f, n) == '3':
+                if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
+                    end_punct = ''.join([end_punct, ' :'])
+                else:
+                    end_punct = ''.join([end_punct, ':'])
+            # Precede subfields a, b, & c with a ';' unless preceded by
+            # subfield 3.
+            elif next_sub(f, n) in ['a', 'b', 'c']:
+                end_punct = ''.join([end_punct, ';'])
+            #  Field ends with a period.
+            if n == last_subdata_index(f):
+                end_punct = ''.join([end_punct, '.'])
+            if end_punct:
+                append_punct(f, n, end_punct)
+    if f.tag == '352':
+        for n, sub in enumerate(f.subfields):
+            end_punct = ''
+            # Enclose the text in subfield ǂc in parentheses.
+            if current_sub(f, n) == 'c':
+                prepend_punct(f, n, '(')
+                end_punct = ''.join([end_punct, ')'])
+            # Enclose consecutive subfields d and/or e within 1 set of
+            # parentheses.
+            elif current_sub(f, n) in ['d', 'e']:
+                if prev_sub(f, n) not in ['d', 'e']:
+                    prepend_punct(f, n, '(')
+                if next_sub(f, n) not in ['d', 'e']:
+                    end_punct = ''.join([end_punct, ')'])
+            # OCLC says: Precede subfields b and i by ' :' or ','
+            # "as appropriate"; it is unclear to me what determines
+            # what is approriate.
+            if next_sub(f, n) in ['b', 'i']:
+                if current_sub(f, n) == 'a':
+                    end_punct = ''.join([end_punct, ' :'])
+                else:
+                    end_punct = ''.join([end_punct, ','])
+            # Precede subfields ǂf, ǂg, and ǂq by a space-semicolon.
+            elif next_sub(f, n) in ['f', 'g', 'q']:
+                end_punct = ''.join([end_punct, ' ;'])
+            #  Field ends with a period.
+            if n == last_subdata_index(f):
+                end_punct = ''.join([end_punct, '.'])
+            if end_punct:
+                append_punct(f, n, end_punct)
+    if f.tag == '362':
+        for n, sub in enumerate(f.subfields):
+            end_punct = ''
+            exempt = []
+            # Precede subfield ǂz with a period.
+            if next_sub(f, n) == 'z':
+                end_punct = ''.join([end_punct, '.'])
+            # Field ends with a period.
+            if n == last_subdata_index(f):
+                end_punct = ''.join([end_punct, '.'])
+                exempt = ['...', '!', '-', '?', ']', '>', ')']
+            if end_punct:
+                append_punct(f, n, end_punct, exempt = exempt)
+    if f.tag == '370':
+        for n, sub in enumerate(f.subfields):
+            end_punct = ''
+            exempt = []
+            # Precede subfield 3 with ':', or ' :' if following an open
+            # date.
+            if n == 1 and current_sub(f, n) == '3':
+                if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
+                    end_punct = ''.join([end_punct, ' :'])
+                else:
+                    end_punct = ''.join([end_punct, ':'])
+            # Omit preceding from subfields, with the common OCLC end
+            # punctuation exceptions.
+            if n % 2 != 0 and n != last_subdata_index(n):
+                del_from_end(f, n,
+                             exempt = ['...', '!', '-', '?', ']', '>', ')'],
+                             abbrev_exempt = True)
+            if end_punct:
+                append_punct(f, n, end_punct, exempt = exempt)
+        # Omit terminal punctuation except ending abbreviations.
+        del_from_end(f, abbrev_exempt = True)
+    if f.tag == '383':
+        # Omit preceding from subfields, with the common OCLC end
+        # punctuation exceptions.
+        for n, sub in enumerate(f.subfields):
+            if current_sub(f, n) and prev_sub(f, n):
+                append_punct(f, n, ',')
+            elif n % 2 != 0 and n != last_subdata_index(n):
+                del_from_end(f, n,
+                             exempt = ['...', '!', '-', '?', ']', '>', ')'],
+                             abbrev_exempt = True)
+        # Omit terminal punctuation except ending abbreviations.
+        del_from_end(f, abbrev_exempt = True)
     if f.tag == '490':
         for n, sub in enumerate(f.subfields):
             end_punct = ''
@@ -1074,7 +1225,7 @@ def punctuate(r, f):
             # Follow an initial subfield 3 with ':' or ' :' if
             # following an open date.
             if n == 1 and current_sub(f, n) == '3':
-                if f.SubFields[n].endswith(tuple(['-', '- ', '->'])):
+                if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
                     end_punct = ''.join([end_punct, ' :'])
                 else:
                     end_punct = ''.join([end_punct, ':'])
@@ -1115,7 +1266,7 @@ def punctuate(r, f):
             # Follow an initial subfield 3 with ':' or ' :' if
             # following an open date.
             if n == 1 and current_sub(f, n) == '3':
-                if f.SubFields[n].endswith(tuple(['-', '- ', '->'])):
+                if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
                     end_punct = ''.join([end_punct, ' :'])
                 else:
                     end_punct = ''.join([end_punct, ':'])
@@ -1134,7 +1285,7 @@ def punctuate(r, f):
             # Follow an initial subfield 3 with ':' or ' :' if
             # following an open date.
             if n == 1 and current_sub(f, n) == '3':
-                if f.SubFields[n].endswith(tuple(['-', '- ', '->'])):
+                if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
                     end_punct = ''.join([end_punct, ' :'])
                 else:
                     end_punct = ''.join([end_punct, ':'])
@@ -1271,7 +1422,7 @@ def punctuate(r, f):
             # Follow an initial subfield 3 with ':' or ' :' if
             # following an open date.
             if n == 1 and current_sub(f, n) == '3':
-                if f.SubFields[n].endswith(tuple(['-', '- ', '->'])):
+                if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
                     end_punct = ''.join([end_punct, ' :'])
                 else:
                     end_punct = ''.join([end_punct, ':'])
@@ -1358,7 +1509,7 @@ def punctuate(r, f):
             # Precede subfield a with ' ;' unless it is the 1st
             # subfield or occurs after a subfield 3.
             if n == 1 and current_sub(f, n) == '3':
-                if f.SubFields[n].endswith(tuple(['-', '- ', '->'])):
+                if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
                     end_punct = ''.join([end_punct, ' :'])
                 else:
                     end_punct = ''.join([end_punct, ':'])
@@ -1448,7 +1599,7 @@ def punctuate(r, f):
             # Precede subfield a with ' ;' unless it is the 1st
             # subfield or occurs after a subfield 3.
             if n == 1 and current_sub(f, n) == '3':
-                if f.SubFields[n].endswith(tuple(['-', '- ', '->'])):
+                if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
                     end_punct = ''.join([end_punct, ' :'])
                 else:
                     end_punct = ''.join([end_punct, ':'])
@@ -1521,7 +1672,7 @@ def punctuate(r, f):
             # Follow an initial subfield 3 with ':' or ' :' if
             # following an open date.
             if n == 1 and current_sub(f, n) == '3':
-                if f.SubFields[n].endswith(tuple(['-', '- ', '->'])):
+                if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
                     end_punct = ''.join([end_punct, ' :'])
                 else:
                     end_punct = ''.join([end_punct, ':'])
