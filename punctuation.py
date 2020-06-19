@@ -1279,7 +1279,8 @@ def punctuate(r, f):
                 exempt = ['?', '!', '"']
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
-    # Field ends with a '.' unless it ends with another punctuation mark.
+    # Field ends with a '.' unless it ends with a common OCLC exception
+    # (based on examples).
     if f.tag in ['501', '508']:
         append_punct(f, last_subdata_index(f), '.',
                      exempt = ['!', '-', '?', ']', '>', ')'])
@@ -1330,15 +1331,34 @@ def punctuate(r, f):
                 end_punct = ''.join([end_punct, '.'])
             if end_punct:
                 append_punct(f, n, end_punct)
-    if f.tag == '507':
+    if f.tag in ['507', '513']:
         for n, sub in enumerate(f.subfields):
             # Subfield b seems to be preceded by ';'.
             if next_sub(f, n) == 'b':
                 append_punct(f, n, ';')
             # Field ends in a period.
             elif n == last_subdata_index(f):
-                append_punct(f, n, '.'))
-            
+                append_punct(f, n, '.', exempt = ['-', '?', '!']))
+    if f.tag == '510':
+        for n, sub in enumerate(f.subfields):
+            end_punct = ''
+            # Field does not end with punctuation, unless ending with
+            # an abbreviation or other data that ends with punctuation.
+            if n == last_subdata_index:
+                exempt = ['...', '!', '-', '?', ']', '>', ')']
+                del_from_end(f, exempt = exempt)
+            # Subfields a, b, c, and/or x end in ',' if another
+            # subfield follows.
+            elif current_sub(f, n) in ['a', 'b', 'c', 'x']:
+                end_punct = ''.join([end_punct, ','])
+            if end_punct:
+                append_punct(f, n, end_punct)
+    # Field 511 ends with a period unless another mark of punctuation
+    # (as defined by LC) is present.
+    if f.tag in ['511', '514', '515', '516', '518', '520']:
+        append_punct(f, last_subdata_index(f), '.',
+                     exempt = ['!', '-', '?'])
+    if f.tag == ''
     if f.tag == '600':
         for n, sub in enumerate(f.subfields):
             end_punct = ''
