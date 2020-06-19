@@ -101,6 +101,7 @@ linking_entry_fields = ['760', '762', '765', '767', '770', '772', '773',
 def punctuate(r, f):
     """Adds the punctuation to a field. Seperated from main() to
     reduce indentation."""
+    count505 = len(r.get_fields('505'))
     # Introductory relationship subfields should end in a
     # colon.
     try:
@@ -1020,7 +1021,7 @@ def punctuate(r, f):
                 # Precede subfield c with a comma.
                 elif next_sub(f, n) == 'c':
                     end_punct = ''.join([end_punct, ','])
-                #  Field ends with a period.
+                # Field ends with a period.
                 if n == last_subdata_index(f):
                     end_punct = ''.join([end_punct, '.'])
                     exempt = ['-', ']']
@@ -1087,7 +1088,7 @@ def punctuate(r, f):
             # Precede subfield b with a semicolon.
             if next_sub(f, n) == 'b':
                 end_punct = ''.join([end_punct, ';'])
-            #  Field ends with a period.
+            # Field ends with a period.
             if n == last_subdata_index(f):
                 del_from_end(f, del_list = ',')
                 end_punct = ''.join([end_punct, '.'])
@@ -1278,6 +1279,66 @@ def punctuate(r, f):
                 exempt = ['?', '!', '"']
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
+    # Field ends with a '.' unless it ends with another punctuation mark.
+    if f.tag in ['501', '508']:
+        append_punct(f, last_subdata_index(f), '.',
+                     exempt = ['!', '-', '?', ']', '>', ')'])
+    # Notes with a single subfield a end in a '.', others do not.
+    if f.tag == '502':
+        if f.get_subfields('a') == '1':
+            append_punct(f, last_subdata_index(f), '.')
+        else:
+            del_from_end(f, del_list = ['.'], abbrev_exempt = True)
+    # Subfield a ends in a period.
+    if f.tag == '504':
+        for n, sub in f.subfields:
+            if current_sub(f, n) == 'a':
+                append_punct(f, n, '.')
+    # 505 has too subfields with ambiguous punctuation: g may be
+    # enclosed in parentheses or preceded by 2 dashes; t may be
+    # preceded by 2 dashes, a period, or a semicolon.
+    if f.tag == '505':
+        count505 -= 1
+        for n, sub in f.subfields:
+            # Preceded statement of responsibility with ' /'.
+            if next_sub(f, n) == 'r':
+                append_punct(f, n, ' /')
+        # End the last 505 field with a period.
+        if count505 == 0:
+            append_punct(f, last_subdata_index(n), '.')
+        else:
+            del_from_end(f, del_list = ['.'], exempt = ['!', '-', '?', '>'],
+                         abbrev_exempt = True)
+    if f.tag == '506':
+        for n, sub in enumerate(f.subfields):
+            end_punct = ''
+            # Follow an initial subfield 3 by ':' or ' :' if following
+            # an open date.
+            if n == 1 and current_sub(f, n) == '3':
+                if f.subfields[n].endswith(tuple(['-', '- ', '->'])):
+                    end_punct = ''.join([end_punct, ' :'])
+                else:
+                    end_punct = ''.join([end_punct, ':'])
+            # Otherwise, precede subfields a, b, c, d, and e by ';'.
+            elif next_sub(f, n) in ['a', 'b', 'c', 'd', 'e']:
+                end_punct = ''.join([end_punct, ';'])
+            # Precede subfield ǂf by '.'; add terminal punctuation
+            # before subfields g or q.
+            elif (next_sub(f, n) in ['f', 'g', 'q']
+                    or (n == last_subdata_index(f)
+                    and current_sub(f, n) not in ['g', 'q'])):
+                end_punct = ''.join([end_punct, '.'])
+            if end_punct:
+                append_punct(f, n, end_punct)
+    if f.tag == '507':
+        for n, sub in enumerate(f.subfields):
+            # Subfield b seems to be preceded by ';'.
+            if next_sub(f, n) == 'b':
+                append_punct(f, n, ';')
+            # Field ends in a period.
+            elif n == last_subdata_index(f):
+                append_punct(f, n, '.'))
+            
     if f.tag == '600':
         for n, sub in enumerate(f.subfields):
             end_punct = ''
