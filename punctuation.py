@@ -89,7 +89,7 @@ no_instructions = [
     '013', '014', '016', '027', '029', '031', '038', '040', '041', '042',
     '043', '047', '048', '061', '066', '071', '072', '074', '080', '084',
     '085', '088', '090', '096', '098', '099', '539', '542', '599', '648',
-    '662', '690', '691', '695', '720', '751'
+    '662', '690', '691', '695', '720', '751', '758'
     '990'
     ]
 
@@ -224,7 +224,7 @@ def punctuate(r, f):
     if f.tag in ['036']:
         append_punct(f, last_subdata_index(f), '.',
                      exempt = ['-', ')', '!', '?'])
-    if f.tag in ['037', '653', '654', '655']:
+    if f.tag in ['037', '653', '654', '655', '753']:
         # subfields does not end with a mark of punctuation
         # unless ending in an abbreviation or data ending
         # with a mark of punctuation.
@@ -1797,7 +1797,7 @@ def punctuate(r, f):
             # Add any necessary ending punctuation.
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
-    if f.tag in ['654', '655', '656', '657', '658', '740']:
+    if f.tag in ['654', '655', '656', '657', '658', '740', '754']:
         for n, sub in enumerate(f.subfields):
             # Field ends with a period unless there is punctuation.
             if n == last_subdata_index(f):
