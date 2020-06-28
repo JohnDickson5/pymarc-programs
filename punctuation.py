@@ -1806,7 +1806,7 @@ def punctuate(r, f):
             elif n % 2 != 0:
                 del_from_end(f, n, exempt = ['?', '!', '-', ')', '"'],
                              abbrev_exempt = True)
-    if f.tag == '700':
+    if f.tag in ['700', '790', '796']:
         for n, sub in enumerate(f.subfields):
             end_punct = ''
             exempt = []
@@ -1893,7 +1893,7 @@ def punctuate(r, f):
             # Add any necessary ending punctuation.
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
-    if f.tag in ['710']:
+    if f.tag in ['710', '791', '797']:
         for n, sub in enumerate(f.subfields):
             end_punct = ''
             exempt = ['"']
@@ -1983,7 +1983,7 @@ def punctuate(r, f):
             # Add any necessary ending punctuation.
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
-    if f.tag == '711':
+    if f.tag =in ['711', '792', '798']:
         for n, sub in enumerate(f.subfields):
             end_punct = ''
             exempt = ['"']
@@ -2056,7 +2056,7 @@ def punctuate(r, f):
             # Add any necessary ending punctuation.
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
-    if f.tag in ['730', '830']:
+    if f.tag in ['730', '793', '799', '830']:
         for n, sub in enumerate(f.subfields):
             end_punct = ''
             exempt = ['"']
@@ -2101,6 +2101,33 @@ def punctuate(r, f):
             # Add any necessary ending punctuation.
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
+    if f.tag in linking_entry_fields:
+        for n, sub in enumerate(f.subfields):
+            end_punct = ''
+            exempt = ['"']
+            if current_sub(f, n) == 'i':
+                end_punct = ''.join([end_punct, ':'])
+            elif next_sub(f, n) == 's':
+                if current_sub(f, n) == 'a':
+                    exempt = ['"', '-', ')', '!', '?']
+                    end_punct = ''.join([end_punct, '.'])
+            elif next_sub(f, n) == 't':
+                if current_sub(f, n) in ['s', 'a']:
+                    exempt = ['"', '-', ')', '!', '?']
+                    end_punct = ''.join([end_punct, '.'])
+            elif next_sub(f, n) in ['b', 'd', 'g', 'h', 'm', 'n']:
+                end_punct = ''.join([end_punct, '.'])
+            elif n == last_subdata_index(f):
+                for i in ['...', '!', '-', '?', ']', '>', ')']:
+                    exempt.append(i)
+                del_from_end(f, n, del_list = ['.'],
+                             exempt = exempt, abbrev_exempt = True)
+            elif next_sub(f, n) in ['e', 'f', 'o', 'p', 'r', 'u', 'w', 'x',
+                                    'y', 'z', '3', '4', '7']:
+                del_from_end(f, n, del_list = ['.'], abbrev_exempt = True)
+            if end_punct:
+                append_punct(f, n, end_punct, exempt = exempt)
+
 
 
 def main():
