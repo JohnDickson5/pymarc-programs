@@ -85,12 +85,17 @@ undefined_fields = [
 
 # This list keeps track of every field without LC or OCLC punctuation
 # instructions
+# Note that 880 should have the same punctuation as the tag given in
+# subfield 6.
 no_instructions = [
     '013', '014', '016', '027', '029', '031', '038', '040', '041', '042',
     '043', '047', '048', '061', '066', '071', '072', '074', '080', '084',
     '085', '088', '090', '096', '098', '099', '539', '542', '599', '648',
-    '662', '690', '691', '695', '720', '751', '758'
-    '990'
+    '662', '690', '691', '695', '720', '751', '758', '841', '842', '844',
+    '851', '852', '853', '854', '855', '856', '863', '864', '865', '866',
+    '867', '868', '876', '877', '878', '880', '882', '883', '884', '885',
+    '886', '887', '891', '901', '902', '903', '904', '905', '906', '907',
+    '945', '946', '947', '948', '949', '990'
     ]
 
 
@@ -281,7 +286,7 @@ def punctuate(r, f):
         # Field does not end in a period.
         del_from_end(f, last_subdata_index(f), del_list = ['.'])
     # Field does not end in a period.
-    if f.tag in ['055', '070', '086']:
+    if f.tag in ['055', '070', '086', '850']:
         del_from_end(f, last_subdata_index(f), '.', abbrev_exempt = True)
     if f.tag in ['060']:
         # Do not retain enclosing brackets in the record.
@@ -538,7 +543,8 @@ def punctuate(r, f):
                 append_punct(f, n, ')')
             # Omit preceding and terminal punctuation from subfields.
             if n % 2 != 0:
-                del_from_end(f, n, exempt = ['...', '!', '-', '?', ']', '>', ')'],
+                del_from_end(f, n,
+                             exempt = ['...', '!', '-', '?', ']', '>', ')'],
                              abbrev_exempt = True)
     if f.tag in ['240', '243']:
         for n, sub in enumerate(f.subfields):
@@ -882,7 +888,7 @@ def punctuate(r, f):
                 append_punct(f, n, end_punct, exempt = exempt)
     if f.tag in ['251', '270', '340', '341', '342', '355', '357', '363', '365',
                  '366', '377', '380', '381', '382', '384', '385', '386', '388',
-                 '987']:
+                 '938', '956', '987']:
         # Omit preceding from subfields, with the common OCLC end
         # punctuation exceptions.
         for n, sub in enumerate(f.subfields):
@@ -1385,7 +1391,7 @@ def punctuate(r, f):
         # Field does not end with final punctuation.
         del_from_end(f, abbrev_exempt = True)
     # Examples show inconsistent punctuation for several subfields.
-    if f.tag == '533':
+    if f.tag in ['533', '843']:
         for n, sub in enumerate(f.subfields):
             end_punct = ''
             exempt = []
@@ -1425,7 +1431,7 @@ def punctuate(r, f):
                 exempt = ['!', '-', '?', '"']
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
-    if f.tag == '540':
+    if f.tag in ['540', '845']:
         for n, sub in enumerate(f.subfields):
             end_punct = ''
             exempt = []
@@ -1806,7 +1812,7 @@ def punctuate(r, f):
             elif n % 2 != 0:
                 del_from_end(f, n, exempt = ['?', '!', '-', ')', '"'],
                              abbrev_exempt = True)
-    if f.tag in ['700', '790', '796']:
+    if f.tag in ['400', '700', '790', '796', '800', '896', '900', '980']:
         for n, sub in enumerate(f.subfields):
             end_punct = ''
             exempt = []
@@ -1883,6 +1889,9 @@ def punctuate(r, f):
                 for i in end_punct: exempt.append(i)
                 del_from_end(f, n, exempt = exempt,
                              abbrev_exempt = True)
+            # Precede volume numbers with a ' ;'
+            elif next_sub(f, n) == 'v':
+                end_punct = ''.join([end_punct, ' ;'])
             # End field with terminal punctuation.
             if n == last_subdata_index(f):
                 del_from_end(f, del_list = ',')
@@ -1893,7 +1902,7 @@ def punctuate(r, f):
             # Add any necessary ending punctuation.
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
-    if f.tag in ['710', '791', '797']:
+    if f.tag in ['410', '710', '791', '797', '810', '897', '910', '981']:
         for n, sub in enumerate(f.subfields):
             end_punct = ''
             exempt = ['"']
@@ -1973,6 +1982,9 @@ def punctuate(r, f):
                 for i in end_punct: exempt.append(i)
                 del_from_end(f, n, exempt = exempt,
                              abbrev_exempt = True)
+            # Precede volume numbers with a ' ;'
+            elif next_sub(f, n) == 'v':
+                end_punct = ''.join([end_punct, ' ;'])
             # End field with terminal punctuation.
             if n == last_subdata_index(f):
                 del_from_end(f, del_list = ',')
@@ -1983,7 +1995,7 @@ def punctuate(r, f):
             # Add any necessary ending punctuation.
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
-    if f.tag =in ['711', '792', '798']:
+    if f.tag =in ['411', '711', '792', '798', '811', '898', '911', '982']:
         for n, sub in enumerate(f.subfields):
             end_punct = ''
             exempt = ['"']
@@ -2046,6 +2058,9 @@ def punctuate(r, f):
                 for i in end_punct: exempt.append(i)
                 del_from_end(f, n, exempt = exempt,
                              abbrev_exempt = True)
+            # Precede volume numbers with a ' ;'
+            elif next_sub(f, n) == 'v':
+                end_punct = ''.join([end_punct, ' ;'])
             # End field with terminal punctuation.
             if n == last_subdata_index(f):
                 del_from_end(f, del_list = ',')
@@ -2056,7 +2071,7 @@ def punctuate(r, f):
             # Add any necessary ending punctuation.
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
-    if f.tag in ['730', '793', '799', '830']:
+    if f.tag in ['440', '730', '793', '799', '830', '899', '930', '983']:
         for n, sub in enumerate(f.subfields):
             end_punct = ''
             exempt = ['"']
@@ -2101,6 +2116,11 @@ def punctuate(r, f):
             # Add any necessary ending punctuation.
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
+    if f.tag == '936':
+        del_from_end(f, abbrev_exempt = True)
+        for n, sub in enumerate(f.subfields):
+            if next_sub(f, n) == 'a':
+                append_punct(f, n, ';')
     if f.tag in linking_entry_fields:
         for n, sub in enumerate(f.subfields):
             end_punct = ''
@@ -2127,7 +2147,6 @@ def punctuate(r, f):
                 del_from_end(f, n, del_list = ['.'], abbrev_exempt = True)
             if end_punct:
                 append_punct(f, n, end_punct, exempt = exempt)
-
 
 
 def main():
